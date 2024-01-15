@@ -1,15 +1,21 @@
-from sqlalchemy import Column, Integer, String
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import Column, Integer, String, Sequence
+from sqlalchemy.orm import relationship
 
-
-# Create a base class
-Base = declarative_base()
+from models.base import Base
 
 
 class Country(Base):
-    __table_name__ = 'countries'
+    __tablename__ = 'countries'
 
-    id = Column(Integer, primary_key=True)
+    league = relationship("League", back_populates="country")
+
+    def __repr__(self):
+        """Return a string representation of the Country object."""
+        return f"<Country(id={self.id}, name={self.name}, code={self.code}, flag={self.flag})>"
+
+    id = Column(Integer, Sequence("id", 1), primary_key=True)
     name = Column(String)
     code = Column(String)
     flag = Column(String)
+
+
