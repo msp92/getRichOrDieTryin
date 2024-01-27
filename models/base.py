@@ -3,7 +3,6 @@ from sqlalchemy.orm import Session
 import pandas as pd
 
 
-# Create a common base class
 class BaseMixin:
     __table__ = None
 
@@ -40,14 +39,11 @@ class BaseMixin:
             data = df.to_dict(orient='records')
             session.bulk_insert_mappings(cls, data)
             session.commit()
-            print("Data inserted successfully!")
+            print(f"{cls.__name__} data inserted successfully!")
         except Exception as e:
             # Rollback the session in case of an error to discard the changes
             session.rollback()
             print(f"Error: {e}")
-        #finally:
-            # Close the session to release resources
-        #    session.close()
 
 
 # Create a declarative base
