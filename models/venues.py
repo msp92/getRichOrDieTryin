@@ -6,7 +6,7 @@ from models.base import Base
 class Venue(Base):
     __tablename__ = 'venues'
 
-    country = relationship("Country", back_populates="venue")
+    # country = relationship("Country", back_populates="venue")
 
     def __repr__(self):
         """Return a string representation of the User object."""

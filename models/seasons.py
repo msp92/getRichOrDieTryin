@@ -8,7 +8,7 @@ class Season(Base):
 
     league = relationship("League", back_populates="season")
     country = relationship("Country", back_populates="season")
-    # fixture = relationship("Fixture", back_populates="season")
+    fixture = relationship("Fixture", back_populates="season")
 
     def __repr__(self):
         """Return a string representation of the User object."""
@@ -17,8 +17,8 @@ class Season(Base):
                 f"current={self.current}, coverage={self.coverage})>")
 
     season_id = Column(String, primary_key=True)
-    league_id = Column(Integer, ForeignKey('leagues.league_id'))  # TODO: try to index FKs
-    country_id = Column(Integer, ForeignKey('countries.country_id'))  # TODO: try to index FKs
+    league_id = Column(Integer, ForeignKey('leagues.league_id'), nullable=False)  # TODO: try to index FKs
+    country_id = Column(Integer, ForeignKey('countries.country_id'), nullable=False)  # TODO: try to index FKs
     year = Column(Integer)
     start_date = Column(Date)
     end_date = Column(Date)
