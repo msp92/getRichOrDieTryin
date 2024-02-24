@@ -1,7 +1,10 @@
 import os
-from time import sleep
-from itertools import product
+import re
 import json
+import time
+from time import sleep
+from datetime import datetime
+from itertools import product
 import pandas as pd
 from config.config import SOURCE_DIR
 from models.countries import Country
@@ -9,7 +12,7 @@ from models.fixtures import Fixture
 from models.leagues import League
 from models.seasons import Season
 from models.teams import Team
-from services.api import pull_json_from_api, write_response_to_json
+from services.api import pull_json_from_api, write_response_to_json, get_data_from_api
 from services.db import get_db_session
 
 
@@ -20,22 +23,18 @@ def get_df_from_json(filename, sub_dir=""):
     return df
 
 
+# TODO: check if performance can be improved
 def load_all_files_from_directory(directory_path):
-    # List all files in the directory
     files = os.listdir(f"{SOURCE_DIR}/{directory_path}")
-    print(f"Collecting all {directory_path} data...")
-    all_data = []
+    print(f"Collecting {directory_path} data...")
     all_dfs = []
 
     # Iterate over all files
     for file_name in files:
-        # Check if the file is a JSON file
         if file_name.endswith(".json"):
-            # Load JSON data and convert it to a DataFrame
             json_data = get_df_from_json(file_name[:-5], sub_dir=directory_path)
             if json_data.empty:
                 print("JSON EMPTY!")
-            all_data.append(json_data.to_dict(orient="records"))
             all_dfs.append(json_data)
         else:
             print(f"Unsupported file type: {file_name}")
@@ -47,11 +46,13 @@ def load_all_files_from_directory(directory_path):
 
 
 def parse_countries() -> pd.DataFrame:
+    print(f"\n** Parsing countries data **")
     df = get_df_from_json("countries").rename(columns={"name": "country_name"})
     return df
 
 
 def parse_leagues() -> pd.DataFrame:
+    print(f"\n** Parsing leagues data **")
     country_df = Country.get_df_from_table()
     df = get_df_from_json("leagues").rename(
         columns={
@@ -64,11 +65,12 @@ def parse_leagues() -> pd.DataFrame:
     )
     final_df = pd.merge(df, country_df, on="country_name", how="left").filter(
         items=League.get_columns_list()
-    )
+    ).sort_values(by="league_id")
     return final_df
 
 
 def parse_teams():
+    print(f"\n** Parsing teams data **")
     country_df = Country.get_df_from_table()
     df = load_all_files_from_directory("teams")
     df.rename(
@@ -82,11 +84,12 @@ def parse_teams():
     )
     final_df = pd.merge(df, country_df, on="country_name", how="left").filter(
         items=Team.get_columns_list()
-    )
+    ).sort_values(by="team_id")
     return final_df
 
 
 def parse_seasons() -> pd.DataFrame:
+    print(f"\n** Parsing seasons data **")
     leagues_df = get_df_from_json("leagues")
     country_df = Country.get_df_from_table()
     # Explode 'season' column and create new columns from season dict values
@@ -112,27 +115,39 @@ def parse_seasons() -> pd.DataFrame:
 
     final_df = pd.merge(final_df, country_df, on="country_name", how="left")
 
-    # As L276_2018 appeared to be a duplicate let's check whole column
-    assign_suffixes_for_duplicates(final_df, "season_id")
+    # As L276_2018 appeared to be a duplicate - seasons merged manually
+    # assign_suffixes_for_duplicates(final_df, "season_id")
 
     final_df = final_df.filter(items=Season.get_columns_list())
     return final_df
 
 
-def parse_fixtures() -> pd.DataFrame:
-    df = load_all_files_from_directory("fixtures")
+def parse_fixtures(subdir) -> pd.DataFrame:
+    print(f"\n** Parsing fixtures data **")
+    time1 = time.time()
+    df = load_all_files_from_directory(f"fixtures/{subdir}")
+    time2 = time.time()
+    print(f"Loading fixtures data took {time2-time1:.3f} seconds.")
     df["season_id"] = (
         "L" + df["league.id"].astype(str) + "_S" + df["league.season"].astype(str)
     )
-    df["goals.home"] = df["goals.home"].fillna(100).astype(int)
-    df["goals.away"] = df["goals.away"].fillna(100).astype(int)
-    df["score.halftime.home"] = df["score.halftime.home"].fillna(100).astype(int)
-    df["score.halftime.away"] = df["score.halftime.away"].fillna(100).astype(int)
+
+    df["goals.home"] = df["goals.home"].fillna(999)
+    df["goals.away"] = df["goals.away"].fillna(999)
+    df["score.halftime.home"] = df["score.halftime.home"].fillna(999)
+    df["score.halftime.away"] = df["score.halftime.away"].fillna(999)
+
     final_df = df.rename(
         columns={
             "fixture.id": "fixture_id",
-            "league.id": "league_id",
             "fixture.date": "date",
+            "fixture.referee": "referee",
+            "fixture.status.short": "status",
+            "league.id": "league_id",
+            "league.name": "league_name",
+            "league.country": "country_name",
+            "league.season": "season_year",
+            "league.round": "round",
             "teams.home.id": "home_team_id",
             "teams.home.name": "home_team_name",
             "teams.away.id": "away_team_id",
@@ -142,7 +157,7 @@ def parse_fixtures() -> pd.DataFrame:
             "score.halftime.home": "goals_home_ht",
             "score.halftime.away": "goals_away_ht",
         }
-    ).filter(items=Fixture.get_columns_list())
+    ).filter(items=Fixture.get_columns_list()).sort_values("date", ascending=True)
     return final_df
 
 
@@ -169,7 +184,7 @@ def pull_single_league_fixtures_for_all_seasons(
                     f"fixtures?league={league_id}&season={season_year[0]}"
                 )
                 write_response_to_json(
-                    season_data, f"fixtures/{league_id}-{league_name}-{season_year[0]}"
+                    season_data, f"{league_id}-{league_name}-{season_year[0]}", "fixtures/league_seasons"
                 )
             except Exception as e:
                 print(e)
@@ -189,10 +204,22 @@ def pull_single_league_fixtures_for_single_season(
             f"fixtures?league={league_id}&season={season_id_to_pull}"
         )
         write_response_to_json(
-            season_data, f"fixtures/{league_id}-{league_name}-{season_id_to_pull}"
+            season_data, f"{league_id}-{league_name}-{season_id_to_pull}", "fixtures/league_seasons"
         )
     except Exception as e:
         print(e)
+
+
+def pull_updated_fixtures() -> None:
+    dates_to_pull = Fixture.get_dates_to_update()
+    for single_date in dates_to_pull:
+        endpoint = f"fixtures?date={single_date}&status=FT"
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        filename = f"FT_{single_date}_{timestamp}"
+        subdir = "fixtures/updates"
+        resp = get_data_from_api(endpoint)
+        write_response_to_json(resp, filename, subdir)
+        sleep(7)
 
 
 # TODO: remove pull_limit and instead implement checking the current available limit
@@ -209,48 +236,39 @@ def pull_teams_for_countries_list(country_ids_list_to_pull: list, pull_limit: in
             try:
                 print(f"Pulling teams for {country_name}...")
                 teams_data = pull_json_from_api(f"teams?country={country_name}")
-                write_response_to_json(teams_data, f"teams/{country_id}_{country_name}")
+                write_response_to_json(teams_data, f"{country_id}_{country_name}", "teams")
             except Exception as e:
                 print(e)
         count += 1
 
 
 # Founded duplicates in leagues.json for league_ids=[276, 379, 397, 402, 542]
-# TODO: To check in related fixtures if causes a problem
-def assign_suffixes_for_duplicates(df, column_name):
-    # Find the duplicated values in the 'season_id' column
-    df["is_duplicate"] = df.duplicated(subset=column_name, keep=False)
-
-    if df["is_duplicate"].any():
-        df.reset_index(drop=True, inplace=True)
-        # Calculate cumulative count and assign incremented value as a suffix
-        df.loc[df["is_duplicate"], column_name] = (
-            df[column_name]
-            + "_"
-            + df[df["is_duplicate"]]
-            .groupby(column_name)
-            .cumcount()
-            .apply(lambda x: x + 1)
-            .astype(str)
-        )
-        df.drop(columns="is_duplicate", inplace=True)
-        print("Duplicates found and suffixes added.")
-    else:
-        print("No duplicates found.")
-
-
-def create_overcome_mask(df):
-    mask = (
-        (df["goals_home_ht"] > df["goals_away_ht"])
-        & (df["goals_home"] < df["goals_away"])
-    ) | (
-        (df["goals_home_ht"] < df["goals_away_ht"])
-        & (df["goals_home"] > df["goals_away"])
-    )
-    return mask
+# It caused also problem in fixtures so problem has been resolved manually
+# def assign_suffixes_for_duplicates(df, column_name):
+#     # Find the duplicated values in the column_name
+#     df["is_duplicate"] = df.duplicated(subset=column_name, keep=False)
+#     breakpoint()
+#
+#     if df["is_duplicate"].any():
+#         df.reset_index(drop=True, inplace=True)
+#         # Calculate cumulative count and assign incremented value as a suffix
+#         df.loc[df["is_duplicate"], column_name] = (
+#             df[column_name]
+#             + "_"
+#             + df[df["is_duplicate"]]
+#             .groupby(column_name)
+#             .cumcount()
+#             .apply(lambda x: x + 1)
+#             .astype(str)
+#         )
+#         df.drop(columns="is_duplicate", inplace=True)
+#         print("Duplicates found and suffixes added.")
+#     else:
+#         print("No duplicates found.")
 
 
-def search_overcome_games(df):
+def search_overcome_pairs(df):
+    start = time.time()
     unique_team_ids = pd.unique(pd.concat([df["home_team_id"], df["away_team_id"]]))
     unique_team_ids_df = pd.DataFrame({"team_id": unique_team_ids})
     teams_df = Team.get_df_from_table()
@@ -262,7 +280,7 @@ def search_overcome_games(df):
     # Iterate over the unique 'team_id's
     for i, first_team_row in unique_teams_df.iterrows():
         print(
-            f"[FIRST TEAM] Index: {i}/{len(unique_teams_df)}, team: {first_team_row['team_id']}-{first_team_row['name']}"
+            f"[FIRST TEAM] Index: {i}/{len(unique_teams_df)}, team: {first_team_row['team_id']}-{first_team_row['team_name']}"
         )
         # Filter the overcome games for the current 'team_id'
         first_team_df = df[
@@ -298,11 +316,14 @@ def search_overcome_games(df):
                             [
                                 {
                                     "fixture_id": row_first["fixture_id"],
-                                    "home_team_id": row_first["home_team_id"],
-                                    "home_team_name": unique_teams_df.query(f'team_id == {row_first['home_team_id']}').iloc[0]['name'],
-                                    "away_team_id": row_first["away_team_id"],
-                                    "away_team_name": unique_teams_df.query(f'team_id == {row_first['away_team_id']}').iloc[0]['name'],
+                                    "league_name": row_first["league_name"],
+                                    "round": row_first["round"],
                                     "date": row_first["date"],
+                                    "referee": row_first["referee"],
+                                    "home_team_id": row_first["home_team_id"],
+                                    "home_team_name": unique_teams_df.query(f'team_id == {row_first['home_team_id']}').iloc[0]['team_name'],
+                                    "away_team_id": row_first["away_team_id"],
+                                    "away_team_name": unique_teams_df.query(f'team_id == {row_first['away_team_id']}').iloc[0]['team_name']
                                 }
                             ]
                         ),
@@ -310,11 +331,14 @@ def search_overcome_games(df):
                             [
                                 {
                                     "fixture_id": row_second["fixture_id"],
-                                    "home_team_id": row_second["home_team_id"],
-                                    "home_team_name": unique_teams_df.query(f"team_id == {row_second['home_team_id']}").iloc[0]['name'],
-                                    "away_team_id": row_second["away_team_id"],
-                                    "away_team_name": unique_teams_df.query(f"team_id == {row_second['away_team_id']}").iloc[0]['name'],
+                                    "league_name": row_second["league_name"],
+                                    "round": row_second["round"],
                                     "date": row_second["date"],
+                                    "referee": row_second["referee"],
+                                    "home_team_id": row_second["home_team_id"],
+                                    "home_team_name": unique_teams_df.query(f"team_id == {row_second['home_team_id']}").iloc[0]['team_name'],
+                                    "away_team_id": row_second["away_team_id"],
+                                    "away_team_name": unique_teams_df.query(f"team_id == {row_second['away_team_id']}").iloc[0]['team_name']
                                 }
                             ]
                         ),
@@ -339,8 +363,12 @@ def search_overcome_games(df):
                     index=False,
                 )
                 print(
-                    f"[SAVED] {comb_length}-COMBO FOR TEAMS: {first_team_row['name']} & {second_team_row['name']}"
+                    f"[SAVED] {comb_length}-COMBO FOR TEAMS: {first_team_row['team_name']} & {second_team_row['team_name']}"
                 )
+        if i == 5:
+            break
+    end = time.time()
+    print(f"Searching overcome games for 5 teams took {end-start:.3f} seconds")
 
 
 def search_overcome_triangles():
@@ -350,6 +378,8 @@ def search_overcome_triangles():
 # Search for teams appearing in newly pulled fixtures that are not existing in Team table
 # TODO: Optimize & refactor
 def insert_missing_teams_into_db(df):
+    start = time.time()
+    print("Checking for missing teams from fixtures data...")
     unique_team_ids = pd.unique(pd.concat([df["home_team_id"], df["away_team_id"]]))
     unique_team_ids_df = pd.DataFrame({"team_id": unique_team_ids})
     df_teams_from_db = Team.get_df_from_table()
@@ -384,8 +414,105 @@ def insert_missing_teams_into_db(df):
         pd.merge(unique_teams_filtered_df, leagues_df, on="league_id", how="left", indicator=True)
         .rename(columns={"name_x": "team_name"})
         .filter(items=["team_id", "country_id", "country_name", "team_name"])
-    )
+    ).drop_duplicates()
     final_df["logo"] = ""
-    final_df = final_df.drop_duplicates()
-    # FIXME: team_id 8002 (Hienghene Sport) has two countries: France & World
+
+    # TODO: few teams has two countries: World & France/Cameroon
+    #  Monitor how big is the problem when having all data
+    final_df = final_df[(final_df['team_id'] != 8002) | (final_df['country_id'] != 166)]
+    final_df = final_df[(final_df['team_id'] != 8143) | (final_df['country_id'] != 166)]
+    final_df = final_df[(final_df['team_id'] != 15566) | (final_df['country_id'] != 166)]
     Team.insert_df(final_df)
+    end = time.time()
+    print(f"Insert missing teams took {end-start:.3f} seconds")
+
+
+# Update table with single result
+def update_table(table, home_team, away_team, home_goals, away_goals):
+    for team, goals, opponent_goals in [
+        (home_team, home_goals, away_goals),
+        (away_team, away_goals, home_goals),
+    ]:
+
+        if team not in table["Team"].values:
+            table = pd.concat(
+                [
+                    table,
+                    pd.DataFrame(
+                        [
+                            {
+                                "Team": team,
+                                "G": 0,
+                                "W": 0,
+                                "D": 0,
+                                "L": 0,
+                                "GF": 0,
+                                "GA": 0,
+                                "PTS": 0,
+                            }
+                        ]
+                    ),
+                ]
+            )
+
+        table.loc[table["Team"] == team, "G"] += 1
+        table.loc[table["Team"] == team, "GF"] += goals
+        table.loc[table["Team"] == team, "GA"] += opponent_goals
+
+        if goals > opponent_goals:
+            table.loc[table["Team"] == team, "PTS"] += 3
+            table.loc[table["Team"] == team, "W"] += 1
+        elif goals == opponent_goals:
+            table.loc[table["Team"] == team, "PTS"] += 1
+            table.loc[table["Team"] == team, "D"] += 1
+        else:
+            table.loc[table["Team"] == team, "L"] += 1
+    return table
+
+
+# Calculate table for input df
+def calculate_table(league_id, season_year, rounds="all_finished"):
+    """
+    Create full table or as of round to calculate custom power factor
+    """
+
+    def find_matching_file():
+        regex = rf"{league_id}-([^-\d]+)-{season_year}"
+        pattern = re.compile(regex)
+        with os.scandir(f"{SOURCE_DIR}/fixtures") as files:
+            for file in files:
+                match = pattern.match(file.name)
+                if match:
+                    return file.name
+            raise Exception(
+                f"Could not find file for league: {league_id} & season: {season_year}"
+            )
+
+    matching_file = find_matching_file()
+    fixtures_df = get_df_from_json(matching_file[:-5], "fixtures")
+    filtered_fixtures_df = Fixture.filter_fixtures_by_rounds(fixtures_df, rounds)
+
+    table = pd.DataFrame(
+        columns=[
+            "Team",
+            "G",
+            "W",
+            "D",
+            "L",
+            "GF",
+            "GA",
+            "PTS",
+        ]
+    )
+
+    for idx, result in filtered_fixtures_df.iterrows():
+        home_team = result["teams.home.name"]
+        away_team = result["teams.away.name"]
+        home_goals = int(result["goals.home"])
+        away_goals = int(result["goals.away"])
+        table = update_table(table, home_team, away_team, home_goals, away_goals)
+
+    table = table.sort_values(by=["PTS", "GF"], ascending=[False, False]).reset_index(
+        drop=True
+    )
+    return table

@@ -13,6 +13,6 @@ class Venue(Base):
         return f"<Venue(id={self.venue_id}, country_id={self.country_id}, city={self.city}, name={self.name})>"
 
     venue_id = Column(Integer, primary_key=True)
-    country_id = Column(Integer, ForeignKey('countries.country_id'), nullable=False)  # TODO: try to index FKs
+    country_id = Column(Integer, ForeignKey('countries.country_id'), nullable=False)
     city = Column(String)
     name = Column(String)

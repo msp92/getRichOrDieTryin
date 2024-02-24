@@ -19,7 +19,7 @@ def get_db_session():
     return session
 
 
-def check_connection():
+def check_db_connection():
     session = get_db_session()
     try:
         # Execute a simple query to fetch the PostgreSQL version

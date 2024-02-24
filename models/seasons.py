@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Sequence, Date, Boolean, ForeignKey, JSON
+from sqlalchemy import Column, Integer, String, Date, Boolean, ForeignKey, JSON
 from sqlalchemy.orm import relationship
 from models.base import Base
 
@@ -17,8 +17,8 @@ class Season(Base):
                 f"current={self.current}, coverage={self.coverage})>")
 
     season_id = Column(String, primary_key=True)
-    league_id = Column(Integer, ForeignKey('leagues.league_id'), nullable=False)  # TODO: try to index FKs
-    country_id = Column(Integer, ForeignKey('countries.country_id'), nullable=False)  # TODO: try to index FKs
+    league_id = Column(Integer, ForeignKey('leagues.league_id'), nullable=False)
+    country_id = Column(Integer, ForeignKey('countries.country_id'), nullable=False)
     year = Column(Integer)
     start_date = Column(Date)
     end_date = Column(Date)

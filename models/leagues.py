@@ -1,15 +1,14 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, Sequence
+from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 from models.base import Base
-from models.countries import Country
 
 
 class League(Base):
     __tablename__ = 'leagues'
 
     country = relationship("Country", back_populates="league")
-    season = relationship("Season")
-    fixture = relationship("Fixture")
+    season = relationship("Season", back_populates="league")
+    fixture = relationship("Fixture", back_populates="league")
 
     def __repr__(self):
         """Return a string representation of the League object."""
@@ -17,7 +16,7 @@ class League(Base):
                 f"name={self.name}, type={self.type}, logo={self.logo})>")
 
     league_id = Column(Integer, primary_key=True)
-    country_id = Column(Integer, ForeignKey('countries.country_id'), nullable=False)  # TODO: try to index FKs
+    country_id = Column(Integer, ForeignKey('countries.country_id'), nullable=False)
     country_name = Column(String, nullable=False)
     name = Column(String)
     type = Column(String)

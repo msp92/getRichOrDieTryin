@@ -7,8 +7,8 @@ class Team(Base):
     __tablename__ = "teams"
 
     country = relationship("Country", back_populates="team")
-    home_team = relationship("Fixture", foreign_keys="Fixture.home_team_id")
-    away_team = relationship("Fixture", foreign_keys="Fixture.away_team_id")
+    home_team = relationship("Fixture", foreign_keys="Fixture.home_team_id", back_populates="home_team")
+    away_team = relationship("Fixture", foreign_keys="Fixture.away_team_id", back_populates="away_team")
 
     def __repr__(self):
         """Return a string representation of the User object."""
@@ -20,7 +20,7 @@ class Team(Base):
     team_id = Column(Integer, primary_key=True)
     country_id = Column(
         Integer, ForeignKey("countries.country_id"), nullable=False
-    )  # TODO: try to index FKs
+    )
     country_name = Column(String, nullable=False)
     team_name = Column(String)
     logo = Column(String)

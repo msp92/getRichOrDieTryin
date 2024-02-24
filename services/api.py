@@ -10,7 +10,7 @@ import requests
 import json
 
 
-def check_status():
+def check_subscription_status():
     url = f"{API_BASE_URL}/status"
     headers = {
         API_HEADER_KEY_NAME: API_HEADER_KEY_VALUE,
@@ -40,8 +40,8 @@ def get_data_from_api(endpoint: str):
     return response
 
 
-def write_response_to_json(response, filename):
-    with open(f"{SOURCE_DIR}/{filename}.json", "w") as f:
+def write_response_to_json(response, filename, subdir=""):
+    with open(f"{SOURCE_DIR}/{subdir}/{filename}.json", "w") as f:
         json.dump(response.json(), f)
 
 
@@ -52,8 +52,9 @@ def pull_json_from_api(endpoint):
             return None
         if response.json()["paging"]["total"] > 1:
             print(
-                f"[FIXME] There are more than 1 page. Please handle this later."
-            )  # TODO: handle this later
+                f"[FIXME] There are more than 1 page. Please handle this asap."
+            )
+            return None
         return response
     else:
         print(f"Error fetching data from API. Status Code: {response.status_code}")
