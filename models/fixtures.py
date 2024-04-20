@@ -6,19 +6,17 @@ from sqlalchemy import (
     ForeignKey,
     func,
 )
-from sqlalchemy.orm import relationship
-from datetime import date, datetime, timedelta
+from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy import or_
+from datetime import date, datetime
 from config.config import SOURCE_DIR
 from models.base import Base
-from services.db import engine, get_db_session
+from services.db import get_engine
 import pandas as pd
 
 
 class Fixture(Base):
     __tablename__ = "fixtures"
-
-    league = relationship("League", back_populates="fixture")
-    season = relationship("Season", back_populates="fixture")
 
     def __repr__(self):
         """Return a string representation of the User object."""
@@ -50,6 +48,13 @@ class Fixture(Base):
     goals_away = Column(Integer)
     goals_home_ht = Column(Integer)
     goals_away_ht = Column(Integer)
+    # TODO: add 'if_break' column
+
+    league = relationship("League", back_populates="fixture")
+    season = relationship("Season", back_populates="fixture")
+    # fixture_event = relationship("FixtureEvent", back_populates="fixture")
+    # fixture_stat = relationship("FixtureStat", back_populates="fixture")
+    # fixture_player_stat = relationship("FixturePlayerStat", back_populates="fixture")
 
     home_team = relationship(
         "Team", foreign_keys=[home_team_id], back_populates="home_team"
@@ -59,95 +64,173 @@ class Fixture(Base):
     )
 
     @classmethod
-    def get_results_max_date(cls):
-        session = get_db_session()
-        try:
-            max_date = (
-                session.query(func.max(cls.date)).filter(cls.status == "FT").scalar()
-            )
-            return max_date.strftime("%Y-%m-%d")
-        except Exception as e:
-            raise Exception
-        finally:
-            session.close()
+    def get_fixtures_dates_to_be_updated(cls) -> set:
+        """
+            Retrieve the set of fixture dates that need to be updated.
 
-    @classmethod
-    def get_today_fixtures(cls):
-        session = get_db_session()
-        try:
-            today_fixtures_df = pd.read_sql_query(
-                session.query(cls).filter(cls.date == date.today()).statement, engine
-            )
-            return today_fixtures_df
-        except Exception as e:
-            raise Exception
-        finally:
-            session.close()
+            This method queries the database to find the dates for fixtures
+            that have not started yet for the specified season year (currently set
+            to "2023"). It returns a set of date strings in the format 'YYYY-MM-DD'.
 
-    @classmethod
-    def get_all_fixtures_by_team(cls, team_id):
-        session = get_db_session()
-        try:
-            team_fixtures_df = pd.read_sql_query(
-                session.query(cls)
-                .filter((cls.home_team_id == team_id) | (cls.away_team_id == team_id))
-                .statement,
-                engine,
-            )
-            return team_fixtures_df
-        except Exception as e:
-            raise Exception
-        finally:
-            session.close()
+            Returns:
+                set: A set of date strings representing the dates for fixtures
+                    that need to be updated.
 
-    @classmethod
-    def get_season_fixtures_by_team(cls, team_id: int, season_year: str):
-        session = get_db_session()
-        try:
-            team_fixtures_df = pd.read_sql_query(
-                session.query(cls)
-                .filter(
-                    (cls.season_year == season_year)
-                    & ((cls.home_team_id == team_id) | (cls.away_team_id == team_id))
+            Raises:
+                Exception: If an error occurs during the database operation.
+        """
+        Session = sessionmaker(bind=get_engine())
+        with Session() as session:
+            try:
+                curr_date = datetime.now().date()
+                # Search min(date) for Not Started games
+                dates_to_update = (
+                    session.query(func.to_char(cls.date, 'YYYY-MM-DD'))
+                    .filter((cls.date <= curr_date) & (cls.status == "NS") & (cls.season_year == "2023"))
+                    .all()
                 )
-                .statement,
-                engine,
-            )
-            return team_fixtures_df
-        except Exception as e:
-            raise Exception
-        finally:
-            session.close()
+                dates_to_update_strings = [date_tuple[0] for date_tuple in dates_to_update]
+                return set(dates_to_update_strings)
+            except Exception as e:
+                raise Exception
 
     @classmethod
-    def get_season_results_by_team(cls, team_id, season_year):
-        session = get_db_session()
-        try:
-            team_results_df = pd.read_sql_query(
-                session.query(cls)
-                .filter(
-                    (cls.status == "FT")
-                    & (cls.season_year == season_year)
-                    & ((cls.home_team_id == team_id) | (cls.away_team_id == team_id))
-                )
-                .statement,
-                engine,
-            )
-            return team_results_df
-        except Exception as e:
-            raise Exception
-        finally:
-            session.close()
+    def update(cls, df: pd.DataFrame) -> None:
+        Session = sessionmaker(bind=get_engine())
+        with (Session() as session):
+            try:
+                # Convert DataFrame to list of dictionaries and update all rows into the database table using the session
+                data = df.to_dict(orient="records")
 
-    # Get all or part of fixtures to create a table
+                # Filter out rows for which fixture_id does not exist in the database
+                fixture_ids_to_update = [row["fixture_id"] for row in data]
+                existing_fixture_ids_in_db = [
+                    row[0]
+                    for row in session.query(cls.fixture_id)
+                    .filter(cls.fixture_id.in_(fixture_ids_to_update))
+                    .all()
+                ]
+                # data_to_update = df[df["fixture_id"].isin(existing_fixture_ids_in_db)]
+                # TODO: delete if above works
+                # [
+                #     row for row in data if row["fixture_id"] in existing_fixture_ids_in_db
+                # ]
+
+                # Excluding newly pulled fixtures with team_ids that are not exist in Team table
+                home_team_to_update = [row["home_team_id"] for row in data]
+                away_team_to_update = [row["away_team_id"] for row in data]
+
+                fixture_ids_without_invalid_teams = [
+                    row[0]
+                    for row in session.query(cls.fixture_id)
+                    .filter(or_(cls.home_team_id.in_(home_team_to_update), cls.away_team_id.in_(away_team_to_update)))
+                    .all()
+                ]
+                # tmp2_df = df[df['away_team_id'] == 23382]
+
+                data_to_update = df[df["fixture_id"].isin(existing_fixture_ids_in_db) | df["fixture_id"].isin(fixture_ids_without_invalid_teams)]
+
+                session.bulk_update_mappings(cls, data_to_update)
+                session.commit()
+                print(f"{cls.__name__} data updated successfully!")
+            except Exception as e:
+                # Rollback the session in case of an error to discard the changes
+                session.rollback()
+                print(f"Error while updating {cls.__name__} data: {e}")
+
+    @classmethod
+    def get_results_max_date(cls) -> str:
+        """
+            Retrieve the maximum date of results in the database.
+
+            This method queries the database to find the maximum date of results
+            where the status is 'FT' (full time).
+
+            Returns:
+                str: The maximum date of results in the format 'YYYY-MM-DD'.
+
+            Raises:
+                Exception: If an error occurs during the database operation.
+        """
+        Session = sessionmaker(bind=get_engine())
+        with Session() as session:
+            try:
+                max_date = (
+                    session.query(func.max(cls.date)).filter(cls.status == "FT").scalar()
+                )
+                return max_date.strftime("%Y-%m-%d")
+            except Exception as e:
+                raise Exception
+
+    @classmethod
+    def get_today_fixtures(cls) -> pd.DataFrame:
+        """
+            Retrieve the maximum date of results in the database.
+
+            This method queries the database to find fixtures that
+            were played or will be played today.
+
+            Returns:
+                pd.DataFrame: Dataframe consists of today's fixtures.
+
+            Raises:
+                Exception: If an error occurs during the database operation.
+        """
+        Session = sessionmaker(bind=get_engine())
+        with Session() as session:
+            try:
+                today_fixtures_df = pd.read_sql_query(
+                    session.query(cls).filter(cls.date == date.today()).statement, get_engine()
+                )
+                return today_fixtures_df
+            except Exception as e:
+                raise Exception
+
+    @classmethod
+    def get_season_fixtures_by_team(cls, team_id: int, season_year: str, status="ALL") -> pd.DataFrame:
+        """
+            Retrieve fixtures of a specific team for a given season and status.
+
+            Args:
+                team_id (int): The ID of the team.
+                season_year (str): The year of the season (e.g., "2023").
+                status (str): The status of the fixtures to retrieve.
+                              Options are "ALL", "FT" (Finished) and "NS" (Not Started).
+
+            Returns:
+                pd.DataFrame: A DataFrame containing the fixtures of the specified team for the given season and status.
+
+            Raises:
+                Exception: If there's any error during the database query or processing.
+        """
+        Session = sessionmaker(bind=get_engine())
+        with Session() as session:
+            try:
+                team_fixtures_df = pd.read_sql_query(
+                    session.query(cls)
+                    .filter(
+                        (cls.season_year == season_year)
+                        & ((cls.home_team_id == team_id) | (cls.away_team_id == team_id))
+                    )
+                    .statement,
+                    get_engine(),
+                )
+                # Return all except Not Started - most statuses are for finished games
+                if status == "FT":
+                    team_fixtures_df = team_fixtures_df[team_fixtures_df["status"] != "NS"]
+                elif status == "NS":
+                    team_fixtures_df = team_fixtures_df[team_fixtures_df["status"] == "NS"]
+                return team_fixtures_df
+            except Exception as e:
+                raise Exception
+
     @staticmethod
-    def filter_fixtures_by_rounds(df, rounds):
+    def filter_fixtures_by_rounds(df: pd.DataFrame, rounds):
         match rounds:
             case "all_finished":
                 return df[df["fixture.status.short"] == "FT"]
             case "last_5":
-                # TODO: think if it make sense to build table for last 5 when there are Relegation/Playoff rounds
-                return None
+                return df[df["fixture.status.short"] == "FT"].tail(5)
             case int():
                 # If rounds is a number filter only "Regular Season" fixtures
                 df = df[df["league.round"].str.contains("Regular Season")]
@@ -157,26 +240,10 @@ class Fixture(Base):
                 ]
 
     @classmethod
-    def get_season_stats_by_team(cls, team_id, season_year):
-        session = get_db_session()
-        try:
-            team_results_df = pd.read_sql_query(
-                session.query(cls)
-                .filter(
-                    (cls.status == "FT")
-                    & (cls.season_year == season_year)
-                    & ((cls.home_team_id == team_id) | (cls.away_team_id == team_id))
-                )
-                .statement,
-                engine,
-            )
-        except Exception as e:
-            print(f"Error: {e}")
-            raise Exception
-        finally:
-            session.close()
+    def get_season_stats_by_team(cls, team_id: int, season_year: str) -> pd.DataFrame:
+        team_results_df = cls.get_season_fixtures_by_team(team_id, season_year, "FT")
 
-        # Apply aggregations
+        # Create grouping subsets: home, away
         team_results_df["team_group"] = team_results_df.apply(
             lambda row: "home" if row["home_team_id"] == team_id else "away", axis=1
         )
@@ -206,7 +273,8 @@ class Fixture(Base):
             ),
             axis=1,
         )
-        team_stats = (
+
+        team_stats_grouped = (
             team_results_df.groupby(["team_group", "team_name"])
             .agg(
                 games=("fixture_id", "count"),
@@ -222,82 +290,54 @@ class Fixture(Base):
             .reset_index()
         )
 
-        return team_stats
+        team_stats_total = (
+            team_results_df.groupby("team_name")
+            .agg(
+                games=("fixture_id", "count"),
+                wins=("form", lambda x: (x == "W").sum()),
+                draws=("form", lambda x: (x == "D").sum()),
+                loses=("form", lambda x: (x == "L").sum()),
+                # goals_scored=(),
+                # goals_conceded=(),
+                # avg_goals_scored=(),
+                # avg_goals_conceded=(),
+                form=("form", lambda x: "".join(x)),
+            )
+            .reset_index()
+        )
+
+        # TODO: merge stats df
+
+        return team_stats_grouped, team_stats_total
 
     @classmethod
-    def create_game_preview(cls, home_team_id, away_team_id):
-        home_stats = cls.get_season_stats_by_team(home_team_id, "2023")
-        away_stats = cls.get_season_stats_by_team(away_team_id, "2023")
+    def create_game_preview(cls, home_team_id: int, away_team_id: int) -> pd.DataFrame:
+        home_stats = cls.get_season_stats_by_team(home_team_id, "2023")[0]
+        away_stats = cls.get_season_stats_by_team(away_team_id, "2023")[0]
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         game_preview_df = pd.concat([home_stats, away_stats])
         game_preview_df.to_csv(
-            f"{SOURCE_DIR}/previews/{home_team_id}-{away_team_id}.csv",
+            f"{SOURCE_DIR}/previews/{timestamp}_{home_team_id}-{away_team_id}.csv",
             index=False,
         )
         return game_preview_df
 
     @classmethod
-    def get_dates_to_update(cls):
-        session = get_db_session()
-        curr_date = datetime.now().date()
-        # Search min(date) for Not Started games
-        min_date_to_pull = (
-            session.query(func.min(cls.date))
-            .filter((cls.status == "NS") & (cls.season_year == "2023"))
-            .scalar()
-        )
-        # Generate a list of dates between min_date_to_pull and curr_date
-        date_range = [
-            min_date_to_pull + timedelta(days=x)
-            for x in range((curr_date - min_date_to_pull).days + 1)
-        ]
-        # Convert dates to string format
-        date_strings = [single_date.strftime("%Y-%m-%d") for single_date in date_range]
-        return date_strings
-
-    @classmethod
-    def update(cls, df: pd.DataFrame):
-        session = get_db_session()
-        try:
-            # Convert DataFrame to list of dictionaries and update all rows into the database table using the session
-            data = df.to_dict(orient="records")
-            # Filter out rows for which fixture_id does not exist in the database
-            existing_fixture_ids = [row["fixture_id"] for row in data]
-            existing_fixture_ids_in_db = [
-                row[0]
-                for row in session.query(cls.fixture_id)
-                .filter(cls.fixture_id.in_(existing_fixture_ids))
-                .all()
-            ]
-            data_to_update = [
-                row for row in data if row["fixture_id"] in existing_fixture_ids_in_db
-            ]
-            session.bulk_update_mappings(cls, data_to_update)
-            session.commit()
-            print(f"{cls.__name__} data updated successfully!")
-        except Exception as e:
-            # Rollback the session in case of an error to discard the changes
-            session.rollback()
-            print(f"Error while updating {cls.__name__} data: {e}")
-        finally:
-            session.close()
-
-    @classmethod
-    def get_overcome_games(cls):
+    def get_overcome_games(cls) -> pd.DataFrame:
         overcome_mask = (
             (cls.goals_home_ht > cls.goals_away_ht) & (cls.goals_home < cls.goals_away)
         ) | (
             (cls.goals_home_ht < cls.goals_away_ht) & (cls.goals_home > cls.goals_away)
         )
 
-        session = get_db_session()
-        try:
-            overcome_games_df = pd.read_sql_query(
-                session.query(cls).filter(overcome_mask).statement, engine
-            )
-            return overcome_games_df
-        except Exception as e:
-            # Rollback the session in case of an error to discard the changes
-            session.rollback()
-            print(f"Error while updating {cls.__name__} data: {e}")
-        finally:
-            session.close()
+        Session = sessionmaker(bind=get_engine())
+        with Session() as session:
+            try:
+                overcome_games_df = pd.read_sql_query(
+                    session.query(cls).filter(overcome_mask).statement, get_engine()
+                )
+                return overcome_games_df
+            except Exception as e:
+                # Rollback the session in case of an error to discard the changes
+                session.rollback()
+                print(f"Error while updating {cls.__name__} data: {e}")

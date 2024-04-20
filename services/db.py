@@ -11,28 +11,25 @@ import models.base as base_model
 
 # Create the engine
 engine = create_engine(DB_URL)
-Session = sessionmaker(bind=engine)
 
 
-def get_db_session():
-    session = Session()
-    return session
+def get_engine():
+    return engine
 
 
 def check_db_connection():
-    session = get_db_session()
-    try:
-        # Execute a simple query to fetch the PostgreSQL version
-        version = session.execute(text("SELECT version();")).scalar()
-        # Display the PostgreSQL version
-        print(f"Connected to PostgreSQL version: {version}")
-        return True
-    except Exception as e:
-        # Handle any exceptions or errors that occur during the connection test
-        print(f"Connection Error: {e}")
-        raise Exception
-    finally:
-        session.close()
+    Session = sessionmaker(bind=get_engine())
+    with Session() as session:
+        try:
+            # Execute a simple query to fetch the PostgreSQL version
+            version = session.execute(text("SELECT version();")).scalar()
+            # Display the PostgreSQL version
+            print(f"Connected to PostgreSQL version: {version}")
+            return True
+        except Exception as e:
+            # Handle any exceptions or errors that occur during the connection test
+            print(f"Connection Error: {e}")
+            raise Exception
 
 
 def create_all_tables():
