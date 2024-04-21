@@ -1,14 +1,11 @@
 import time
-
 import pandas as pd
-
 from data_processing.data_processing import load_all_files_from_directory
 from models.countries import Country
 from models.fixtures import Fixture
 from models.leagues import League
 from models.seasons import Season
 from models.teams import Team
-
 from utils.utils import get_df_from_json
 
 
@@ -81,10 +78,6 @@ def parse_seasons() -> pd.DataFrame:
     )
 
     final_df = pd.merge(final_df, country_df, on="country_name", how="left")
-
-    # As L276_2018 appeared to be a duplicate - seasons merged manually
-    # assign_suffixes_for_duplicates(final_df, "season_id")
-
     final_df = final_df.filter(items=Season.get_columns_list())
     return final_df
 
@@ -101,19 +94,15 @@ def parse_fixtures(subdir: str) -> pd.DataFrame:
 
     """
     print(f"\n** Parsing fixtures data **")
-    time1 = time.time()
     df_fixtures = load_all_files_from_directory(f"fixtures/{subdir}")
-    time2 = time.time()
-    print(f"Loading fixtures data took {time2-time1:.3f} seconds.")
     df_fixtures["season_id"] = (
         "L" + df_fixtures["league.id"].astype(str) + "_S" + df_fixtures["league.season"].astype(str)
     )
 
-    # Fill missing values for goals and halftime scores (Not Started games) # FIXME: replace it with sth smarter
-    df_fixtures["goals.home"] = df_fixtures["goals.home"].fillna(999)
-    df_fixtures["goals.away"] = df_fixtures["goals.away"].fillna(999)
-    df_fixtures["score.halftime.home"] = df_fixtures["score.halftime.home"].fillna(999)
-    df_fixtures["score.halftime.away"] = df_fixtures["score.halftime.away"].fillna(999)
+    df_fixtures["goals.home"] = df_fixtures["goals.home"].astype("Int64")
+    df_fixtures["goals.away"] = df_fixtures["goals.away"].astype("Int64")
+    df_fixtures["score.halftime.home"] = df_fixtures["score.halftime.home"].astype("Int64")
+    df_fixtures["score.halftime.away"] = df_fixtures["score.halftime.away"].astype("Int64")
 
     final_df = df_fixtures.rename(
         columns={
@@ -136,10 +125,6 @@ def parse_fixtures(subdir: str) -> pd.DataFrame:
             "score.halftime.away": "goals_away_ht",
         }
     ).filter(items=Fixture.get_columns_list()).sort_values("date", ascending=True)
-    # breakpoint()
-    # tmp2_df = final_df[final_df['away_team_id'] == 23382]
-    # # Excluding newly pulled fixtures with team_ids that are not exist in Team table
-    # final_df = final_df[final_df['fixture_id'] != '23382']
     return final_df
 
 

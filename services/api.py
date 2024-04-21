@@ -2,10 +2,8 @@ import json
 import os
 from datetime import datetime
 from time import sleep
-
 from sqlalchemy import and_
 from sqlalchemy.orm import sessionmaker
-
 from config.config import (
     CURRENT_API,
     API_FOOTBALL_BASE_URL,
@@ -20,7 +18,6 @@ from config.config import (
     RAPID_API_HEADER_HOST_VALUE, SOURCE_DIR,
 )
 import requests
-
 from models.countries import Country
 from models.fixtures import Fixture
 from models.leagues import League
@@ -39,6 +36,8 @@ elif CURRENT_API == "rapid-api":
     HEADER_KEY_VALUE = RAPID_API_HEADER_KEY_VALUE
     HEADER_HOST_NAME = RAPID_API_HEADER_HOST_NAME
     HEADER_HOST_VALUE = RAPID_API_HEADER_HOST_VALUE
+
+SLEEP_TIME = 5/60
 
 
 def check_subscription_status():
@@ -107,7 +106,7 @@ def pull_single_league_fixtures_for_all_seasons(league_id_to_pull: int, pull_lim
             for season_year in season_years:
                 if count < pull_limit:
                     print(f"Sleeping for a few seconds to avoid reaching limit.")
-                    sleep(60/280)
+                    sleep(SLEEP_TIME)
                     try:
                         print(
                             f"Pulling fixtures for {league_name}, season: {season_year[0]}..."
@@ -167,13 +166,17 @@ def pull_updated_fixtures() -> None:
             None
     """
     dates_to_pull = Fixture.get_fixtures_dates_to_be_updated()
-    finished_statuses = "FT-AET-PEN-INT-PST-ABD-WO"
+    finished_statuses = "FT-AET-PEN-WO"
+
+    if not dates_to_pull:
+        print(f"No dates to update.")
+
     for single_date in dates_to_pull:
         endpoint = f"fixtures?date={single_date}&status={finished_statuses}"
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         resp = get_json_from_api(endpoint)
         write_response_to_json(resp, f"FINISHED_{single_date}_{timestamp}", "fixtures/updates")
-        sleep(60/280)
+        sleep(SLEEP_TIME)
 
 
 def pull_teams_for_countries_list(country_ids_list_to_pull: list, pull_limit: int):
@@ -190,7 +193,7 @@ def pull_teams_for_countries_list(country_ids_list_to_pull: list, pull_limit: in
                 break
 
             print(f"Sleeping for a few seconds to avoid reaching limit.")
-            sleep(7)
+            sleep(SLEEP_TIME)
 
             try:
                 print(f"Pulling teams for {country_name}...")
@@ -225,7 +228,7 @@ def pull_statistics_fixtures_for_leagues_and_seasons(
             for fixture in fixtures:
                 if count < pull_limit:
                     print(f"Sleeping for a few seconds to avoid reaching limit.")
-                    sleep(60/290)
+                    sleep(SLEEP_TIME)
                     try:
                         print(
                             f"Pulling statistics fixtures for fixture: {fixture.fixture_id} "
@@ -265,7 +268,7 @@ def pull_player_statistics_for_leagues_and_seasons(
             for fixture in fixtures:
                 if count < pull_limit:
                     print(f"Sleeping for a few seconds to avoid reaching limit.")
-                    sleep(60/290)
+                    sleep(SLEEP_TIME)
                     try:
                         print(
                             f"Pulling player statistics for fixture: {fixture.fixture_id} "
@@ -291,7 +294,7 @@ def pull_events_for_leagues_and_seasons(
     league_ids_to_pull: list, season_year_to_pull: str, pull_limit: int
 ):
     Session = sessionmaker(bind=get_engine())
-    finished_statuses = ["FT","AET","PEN","INT","PST","CANC","ABD","WO"]
+    finished_statuses = ["FT", "AET", "PEN", "WO"]
     with Session() as session:
         try:
             fixtures = (
@@ -307,7 +310,7 @@ def pull_events_for_leagues_and_seasons(
             for fixture in fixtures:
                 if count < pull_limit:
                     print(f"Sleeping for a few seconds to avoid reaching limit.")
-                    sleep(60/290)
+                    sleep(SLEEP_TIME)
                     try:
                         print(
                             f"Pulling player statistics for fixture: {fixture.fixture_id} "

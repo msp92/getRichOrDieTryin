@@ -7,10 +7,11 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.orm import relationship, sessionmaker
-from sqlalchemy import or_
+from sqlalchemy import or_, and_
 from datetime import date, datetime
 from config.config import SOURCE_DIR
 from models.base import Base
+from models.teams import Team
 from services.db import get_engine
 import pandas as pd
 
@@ -70,11 +71,10 @@ class Fixture(Base):
 
             This method queries the database to find the dates for fixtures
             that have not started yet for the specified season year (currently set
-            to "2023"). It returns a set of date strings in the format 'YYYY-MM-DD'.
+            to "2023"). Then checks if share of not started games is >= 50%.
 
             Returns:
-                set: A set of date strings representing the dates for fixtures
-                    that need to be updated.
+                set: A set of date strings in the format 'YYYY-MM-DD'
 
             Raises:
                 Exception: If an error occurs during the database operation.
@@ -90,49 +90,62 @@ class Fixture(Base):
                     .all()
                 )
                 dates_to_update_strings = [date_tuple[0] for date_tuple in dates_to_update]
-                return set(dates_to_update_strings)
+                unique_dates_to_update = list(set(dates_to_update_strings))
+                # Create a new list with items removed
+                filtered_dates_to_update = [
+                    single_date
+                    for single_date in unique_dates_to_update
+                    if cls.calculate_share_of_not_started_games(single_date) >= 50
+                ]
+                return set(filtered_dates_to_update)
             except Exception as e:
                 raise Exception
 
     @classmethod
+    def calculate_share_of_not_started_games(cls, date_to_check: str):
+        Session = sessionmaker(bind=get_engine())
+
+        with Session() as session:
+            all_fixture_count = session.query(func.count(cls.fixture_id)).filter(cls.date == date_to_check).scalar()
+            not_started_fixture_count = session.query(func.count(cls.fixture_id)).filter((cls.date == date_to_check) & (cls.status == "NS")).scalar()
+
+        return int(not_started_fixture_count / all_fixture_count * 100)
+
+
+    @classmethod
     def update(cls, df: pd.DataFrame) -> None:
         Session = sessionmaker(bind=get_engine())
-        with (Session() as session):
+        with Session() as session:
             try:
-                # Convert DataFrame to list of dictionaries and update all rows into the database table using the session
-                data = df.to_dict(orient="records")
+                unique_team_ids = set(df['home_team_id'].unique()) | set(df['away_team_id'].unique())
+                unique_fixture_ids = df['fixture_id'].unique()
 
-                # Filter out rows for which fixture_id does not exist in the database
-                fixture_ids_to_update = [row["fixture_id"] for row in data]
-                existing_fixture_ids_in_db = [
-                    row[0]
-                    for row in session.query(cls.fixture_id)
-                    .filter(cls.fixture_id.in_(fixture_ids_to_update))
-                    .all()
+                # Convert int64 to Python integers
+                unique_team_ids = [int(team_id) for team_id in unique_team_ids]
+                unique_fixture_ids = [int(fixture_id) for fixture_id in unique_fixture_ids]
+
+                # Query database to get existing IDs
+                existing_team_ids = [
+                    row[0] for row in session.query(Team.team_id).filter(Team.team_id.in_(unique_team_ids)).all()
                 ]
-                # data_to_update = df[df["fixture_id"].isin(existing_fixture_ids_in_db)]
-                # TODO: delete if above works
-                # [
-                #     row for row in data if row["fixture_id"] in existing_fixture_ids_in_db
-                # ]
-
-                # Excluding newly pulled fixtures with team_ids that are not exist in Team table
-                home_team_to_update = [row["home_team_id"] for row in data]
-                away_team_to_update = [row["away_team_id"] for row in data]
-
-                fixture_ids_without_invalid_teams = [
-                    row[0]
-                    for row in session.query(cls.fixture_id)
-                    .filter(or_(cls.home_team_id.in_(home_team_to_update), cls.away_team_id.in_(away_team_to_update)))
-                    .all()
+                existing_fixture_ids = [
+                    row[0] for row in session.query(cls.fixture_id).filter(cls.fixture_id.in_(unique_fixture_ids)).all()
                 ]
-                # tmp2_df = df[df['away_team_id'] == 23382]
 
-                data_to_update = df[df["fixture_id"].isin(existing_fixture_ids_in_db) | df["fixture_id"].isin(fixture_ids_without_invalid_teams)]
+                # Filter out non-existing IDs from the input DF
+                filtered_df = df[
+                    (df['home_team_id'].isin(existing_team_ids))
+                    &
+                    (df['away_team_id'].isin(existing_team_ids))
+                    &
+                    (df['fixture_id'].isin(existing_fixture_ids))
+                ]
 
-                session.bulk_update_mappings(cls, data_to_update)
+                # Update the records in the database using the filtered DataFrame
+                session.bulk_update_mappings(cls, filtered_df.to_dict(orient='records'))
                 session.commit()
                 print(f"{cls.__name__} data updated successfully!")
+                print(f"{len(df)} {cls.__name__} records updated successfully")
             except Exception as e:
                 # Rollback the session in case of an error to discard the changes
                 session.rollback()

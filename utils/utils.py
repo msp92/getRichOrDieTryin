@@ -1,4 +1,5 @@
 import os
+import shutil
 import re
 import json
 import time
@@ -49,6 +50,21 @@ def get_df_from_json(filename: str, sub_dir="") -> pd.DataFrame:
 
 def write_df_to_csv(df, filename):
     df.to_csv(f"{SOURCE_DIR}/{filename}.csv", index=False)
+
+
+def move_json_files_between_directories(source_dir, target_dir):
+    # List only JSON files in the source directory
+    files_to_move = [file for file in os.listdir(source_dir) if file.endswith('.json')]
+
+    # Create the child directory if it doesn't exist
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
+
+    # Move each file to the child directory
+    for file_name in files_to_move:
+        source_file_path = os.path.join(source_dir, file_name)
+        dest_file_path = os.path.join(target_dir, file_name)
+        shutil.move(source_file_path, dest_file_path)
 
 
 def search_overcome_pairs(df):
@@ -157,8 +173,6 @@ def search_overcome_pairs(df):
 
 def search_overcome_triangles():
     pass
-# Search for teams existing in pulled fixtures that are not yet inserted into Team table
-# TODO: refactor DONE, add docstring
 
 
 def insert_missing_teams_into_db(df):
