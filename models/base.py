@@ -1,7 +1,10 @@
-from sqlalchemy import func
+import logging
+from sqlalchemy import func, create_engine
 from sqlalchemy.ext.declarative import declarative_base
 import pandas as pd
 from sqlalchemy.orm import sessionmaker
+
+from config.config import DB_URL
 from services.db import get_engine
 
 
@@ -36,7 +39,7 @@ class BaseMixin:
                 count_all = session.query(func.count()).select_from(cls).scalar()
                 return count_all
             except Exception as e:
-                print(f"Error while getting {cls.__name__} count: {e}")
+                logging.error(f"Error while getting {cls.__name__} count: {e}")
                 raise Exception
 
     @classmethod
@@ -53,11 +56,10 @@ class BaseMixin:
         Session = sessionmaker(bind=get_engine())
         with Session() as session:
             try:
-                # Query the data
                 df = pd.read_sql_query(session.query(cls).statement, get_engine())
                 return df
             except Exception as e:
-                print(f"Error while getting {cls.__name__} data: {str(e)}")
+                logging.error(f"Error while getting {cls.__name__} data: {str(e)}")
                 raise Exception
 
     @classmethod
@@ -71,18 +73,19 @@ class BaseMixin:
             Raises:
                 Exception: If there's any error during the database insertion or processing.
         """
-        Session = sessionmaker(bind=get_engine())
+        # FIXME: stop creating engine for each transaction and use connection pools using PgBouncer
+        Session = sessionmaker(bind=create_engine(DB_URL))
         with Session() as session:
             try:
                 # Convert DataFrame to list of dictionaries and insert all rows into db
                 data = df.to_dict(orient="records")
                 session.bulk_insert_mappings(cls, data)
                 session.commit()
-                print(f"Successfully inserted {len(data)} records to {cls.__name__} table!")
+                logging.info(f"Successfully inserted {len(data)} records to {cls.__name__} table!")
             except Exception as e:
                 # Rollback the session in case of an error to discard the changes
                 session.rollback()
-                print(f"Error while inserting {cls.__name__} data: {e}")
+                logging.error(f"Error while inserting {cls.__name__} data: {e}")
                 raise Exception
 
 

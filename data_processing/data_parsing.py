@@ -1,3 +1,4 @@
+import logging
 import time
 import pandas as pd
 from data_processing.data_processing import load_all_files_from_directory
@@ -93,7 +94,7 @@ def parse_fixtures(subdir: str) -> pd.DataFrame:
             pd.DataFrame: A DataFrame containing parsed fixtures data.
 
     """
-    print(f"\n** Parsing fixtures data **")
+    logging.info(f"\n** Parsing fixtures data **")
     df_fixtures = load_all_files_from_directory(f"fixtures/{subdir}")
     df_fixtures["season_id"] = (
         "L" + df_fixtures["league.id"].astype(str) + "_S" + df_fixtures["league.season"].astype(str)
@@ -103,6 +104,8 @@ def parse_fixtures(subdir: str) -> pd.DataFrame:
     df_fixtures["goals.away"] = df_fixtures["goals.away"].astype("Int64")
     df_fixtures["score.halftime.home"] = df_fixtures["score.halftime.home"].astype("Int64")
     df_fixtures["score.halftime.away"] = df_fixtures["score.halftime.away"].astype("Int64")
+    # FIXME: find better way of extracting; now it will get incorrect parts for some cases
+    # df_fixtures["league.round"] = df_fixtures['league.round'].str.extract(r'(\d+)$')
 
     final_df = df_fixtures.rename(
         columns={

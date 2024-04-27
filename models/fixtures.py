@@ -1,3 +1,5 @@
+import logging
+
 from sqlalchemy import (
     Column,
     Integer,
@@ -5,6 +7,7 @@ from sqlalchemy import (
     Date,
     ForeignKey,
     func,
+    asc,
 )
 from sqlalchemy.orm import relationship, sessionmaker
 from sqlalchemy import or_, and_
@@ -144,12 +147,12 @@ class Fixture(Base):
                 # Update the records in the database using the filtered DataFrame
                 session.bulk_update_mappings(cls, filtered_df.to_dict(orient='records'))
                 session.commit()
-                print(f"{cls.__name__} data updated successfully!")
-                print(f"{len(df)} {cls.__name__} records updated successfully")
+                logging.info(f"{cls.__name__} data updated successfully!")
+                logging.info(f"{len(df)} {cls.__name__} records updated successfully")
             except Exception as e:
                 # Rollback the session in case of an error to discard the changes
                 session.rollback()
-                print(f"Error while updating {cls.__name__} data: {e}")
+                logging.error(f"Error while updating {cls.__name__} data: {e}")
 
     @classmethod
     def get_results_max_date(cls) -> str:
@@ -347,10 +350,10 @@ class Fixture(Base):
         with Session() as session:
             try:
                 overcome_games_df = pd.read_sql_query(
-                    session.query(cls).filter(overcome_mask).statement, get_engine()
+                    session.query(cls).filter(overcome_mask).order_by(asc(cls.date)).statement, get_engine()
                 )
                 return overcome_games_df
             except Exception as e:
                 # Rollback the session in case of an error to discard the changes
                 session.rollback()
-                print(f"Error while updating {cls.__name__} data: {e}")
+                logging.error(f"Error while reading {cls.__name__} data: {e}")

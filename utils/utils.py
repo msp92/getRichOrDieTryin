@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 import re
@@ -5,12 +6,15 @@ import json
 import time
 from itertools import product
 import pandas as pd
+from numpy import dtype
+
 from config.config import SOURCE_DIR
 from data_processing.data_transformations import transform_statistics_fixtures, transform_player_statistics, \
     transform_events
 from models.countries import Country
 from models.fixtures import Fixture
 from models.leagues import League
+from models.pairs import Pair
 from models.teams import Team
 
 
@@ -68,107 +72,124 @@ def move_json_files_between_directories(source_dir, target_dir):
 
 
 def search_overcome_pairs(df):
-    start = time.time()
     unique_team_ids = pd.unique(pd.concat([df["home_team_id"], df["away_team_id"]]))
     unique_team_ids_df = pd.DataFrame({"team_id": unique_team_ids})
     teams_df = Team.get_df_from_table()
-    # TODO: merge league_name to input df
-    leagues_df = League.get_df_from_table()
 
     unique_teams_df = pd.merge(unique_team_ids_df, teams_df, how="left", on="team_id")
 
     # Iterate over the unique 'team_id's
     for i, first_team_row in unique_teams_df.iterrows():
-        print(
-            f"[FIRST TEAM] Index: {i}/{len(unique_teams_df)}, team: {first_team_row['team_id']}-{first_team_row['team_name']}"
+        logging.info(
+            f"[FIRST TEAM] Index: {i}/{len(unique_teams_df)}, team: {first_team_row['team_name']} ({first_team_row['country_name']})"
         )
         # Filter the overcome games for the current 'team_id'
         first_team_df = df[
             (df["home_team_id"] == first_team_row["team_id"])
             | (df["away_team_id"] == first_team_row["team_id"])
         ]
+        # Prepare the data for calculations: convert pandas object => datetime => UNIX timestamp
+        first_team_df = first_team_df.copy()  # Avoid SettingWithCopyWarning
+        first_team_df.loc[:, 'date_numeric'] = pd.to_datetime(first_team_df['date']).astype('int64') // 10**9  # Convert nanoseconds to seconds
+
+
         # Check if the team has at least two games
-        if len(first_team_df) < 2:
+        if len(first_team_df) < 5:
             continue
 
-        print(f"Searching for second team...")
+        logging.info(f"Searching for second team...")
         # Iterate over the overcome games of the current team
         for j, second_team_row in unique_teams_df.iterrows():
-            if i == j:
-                continue
-            second_team_df = df[
-                (df["home_team_id"] == second_team_row["team_id"])
-                | (df["away_team_id"] == second_team_row["team_id"])
-            ]
-            # Check if the team has at least two overcome games
-            if len(second_team_df) < 2:
-                continue
-
-            # Get common overcome games for both teams
-            combinations = list(
-                product(first_team_df.iterrows(), second_team_df.iterrows())
-            )
-            # Filter common overcome games for those within 5 days
-            result_combinations = [
-                pd.concat(
-                    [
-                        pd.DataFrame(
-                            [
-                                {
-                                    "fixture_id": row_first["fixture_id"],
-                                    "league_name": row_first["league_name"],
-                                    "round": row_first["round"],
-                                    "date": row_first["date"],
-                                    "referee": row_first["referee"],
-                                    "home_team_id": row_first["home_team_id"],
-                                    "home_team_name": unique_teams_df.query(f"team_id == {row_first['home_team_id']}").iloc[0]['team_name'],
-                                    "away_team_id": row_first["away_team_id"],
-                                    "away_team_name": unique_teams_df.query(f"team_id == {row_first['away_team_id']}").iloc[0]['team_name']
-                                }
-                            ]
-                        ),
-                        pd.DataFrame(
-                            [
-                                {
-                                    "fixture_id": row_second["fixture_id"],
-                                    "league_name": row_second["league_name"],
-                                    "round": row_second["round"],
-                                    "date": row_second["date"],
-                                    "referee": row_second["referee"],
-                                    "home_team_id": row_second["home_team_id"],
-                                    "home_team_name": unique_teams_df.query(f"team_id == {row_second['home_team_id']}").iloc[0]['team_name'],
-                                    "away_team_id": row_second["away_team_id"],
-                                    "away_team_name": unique_teams_df.query(f"team_id == {row_second['away_team_id']}").iloc[0]['team_name']
-                                }
-                            ]
-                        ),
+            if j > i:
+                second_team_df = df[
+                    (df["home_team_id"] == second_team_row["team_id"])
+                    | (df["away_team_id"] == second_team_row["team_id"])
                     ]
+                # Prepare the data for calculations: convert pandas object => datetime => UNIX timestamp
+                second_team_df = second_team_df.copy()  # Avoid SettingWithCopyWarning
+                second_team_df.loc[:, 'date_numeric'] = pd.to_datetime(second_team_df['date']).astype('int64') // 10**9  # Convert nanoseconds to seconds
+
+                # Check if the team has at least two overcome games
+                if len(second_team_df) < 5:
+                    continue
+
+                # Prepare combinations of overcome games for both teams
+                combinations = list(
+                    product(first_team_df.iterrows(), second_team_df.iterrows())
                 )
-                for (_, row_first), (_, row_second) in combinations
-                if abs(
-                    (
-                        pd.to_datetime(row_first["date"])
-                        - pd.to_datetime(row_second["date"])
-                    ).days
-                )
-                <= 5
-                and row_first["fixture_id"] != row_second["fixture_id"]
-            ]
-            comb_length = len(result_combinations)
-            if comb_length > 1:
-                result_df = pd.concat(result_combinations).reset_index(drop=True)
-                result_df.to_csv(
-                    f"{SOURCE_DIR}/overcome-games/"
-                    f"{comb_length}-{first_team_row['team_id']}&{second_team_row['team_id']}.csv",
-                    index=False,
-                )
-                print(
-                    f"[SAVED] {comb_length}-COMBO FOR TEAMS: {first_team_row['team_name']} & {second_team_row['team_name']}"
-                )
-        if i == 5:
-            break
-    end = time.time()
-    print(f"Searching overcome games for 5 teams took {end-start:.3f} seconds")
+                # Filter common overcome games for those within 5 days
+                result_combinations = [
+                    pd.concat(
+                        [
+                            pd.DataFrame(
+                                [
+                                    {
+                                        "fixture_id": row_first["fixture_id"],
+                                        "league_name": row_first["league_name"],
+                                        "round": row_first["round"],
+                                        "date": row_first["date"],
+                                        "referee": row_first["referee"],
+                                        "home_team_id": row_first["home_team_id"],
+                                        "home_team_name": unique_teams_df.query(f"team_id == {row_first['home_team_id']}").iloc[0]['team_name'],
+                                        "away_team_id": row_first["away_team_id"],
+                                        "away_team_name": unique_teams_df.query(f"team_id == {row_first['away_team_id']}").iloc[0]['team_name']
+                                    }
+                                ]
+                            ),
+                            pd.DataFrame(
+                                [
+                                    {
+                                        "fixture_id": row_second["fixture_id"],
+                                        "league_name": row_second["league_name"],
+                                        "round": row_second["round"],
+                                        "date": row_second["date"],
+                                        "referee": row_second["referee"],
+                                        "home_team_id": row_second["home_team_id"],
+                                        "home_team_name": unique_teams_df.query(f"team_id == {row_second['home_team_id']}").iloc[0]['team_name'],
+                                        "away_team_id": row_second["away_team_id"],
+                                        "away_team_name": unique_teams_df.query(f"team_id == {row_second['away_team_id']}").iloc[0]['team_name']
+                                    }
+                                ]
+                            ),
+                        ]
+                    )
+                    for (_, row_first), (_, row_second) in combinations
+                    if abs(row_first["date_numeric"] - row_second["date_numeric"]) <= 5 * 24 * 3600  # 5 days in seconds
+                    and row_first["fixture_id"] != row_second["fixture_id"]
+                ]
+
+                comb_length = len(result_combinations)
+
+                if comb_length > 5:
+                    # Write pair details into csv file
+                    result_df = pd.concat(result_combinations).reset_index(drop=True)
+                    # result_df.insert(0, "pair_id", pair_counter)
+                    # pair_counter += 1
+                    result_df.to_csv(
+                        f"{SOURCE_DIR}/overcome_games/"
+                        f"{comb_length}_{first_team_row['team_id']}&{second_team_row['team_id']}.csv",
+                        index=False,
+                    )
+                    logging.info(
+                        f"[SAVED] {comb_length}-COMBO FOR TEAMS: {first_team_row['team_name']} & {second_team_row['team_name']}"
+                    )
+
+                    # Insert general pair information
+                    pair_df = pd.DataFrame(
+                        {
+                            "team_id_1": first_team_row['team_id'],
+                            "team_name_1": first_team_row['team_name'],
+                            "team_id_2": second_team_row["team_id"],
+                            "team_name_2": second_team_row['team_name'],
+                            "size": comb_length,
+                            "first_game_date": min(result_df['date']),
+                            "last_game_date": max(result_df['date'])
+                        },
+                        index=[0]
+                    )
+
+                    Pair.insert_df(pair_df)
+
 
 
 def search_overcome_triangles():
@@ -176,7 +197,7 @@ def search_overcome_triangles():
 
 
 def insert_missing_teams_into_db(df):
-    print("Checking for teams in fixtures that are missing in Team table...")
+    logging.info("Checking for teams in fixtures that are missing in Team table...")
     # Get unique teams from all pulled fixtures
     unique_team_ids = pd.unique(pd.concat([df["home_team_id"], df["away_team_id"]]))
     unique_team_ids_df = pd.DataFrame({"team_id": unique_team_ids})
@@ -189,7 +210,7 @@ def insert_missing_teams_into_db(df):
     missing_ids_df = merged_df[merged_df["_merge"] == "left_only"].drop(
         columns=["_merge"]
     )
-    print(f"Number of missing teams from current fixtures: {len(missing_ids_df)}")
+    logging.info(f"Number of missing teams from current fixtures: {len(missing_ids_df)}")
 
     # Get fixtures of missing teams
     missing_teams_in_fixtures_df = df[
@@ -354,7 +375,7 @@ def calculate_no_draw_csv_for_all_teams() -> None:
             team_stats_total.filter(items=["team_name", "form"])
             team_stats_df_list.append(team_stats_total)
         except Exception as e:  # check what is the error and handle it
-            print(f"Error: {str(e)}")
+            logging.error(f"Error: {str(e)}")
             continue
 
     final_df = pd.concat(team_stats_df_list)

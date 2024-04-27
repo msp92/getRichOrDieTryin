@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from datetime import datetime
 from time import sleep
@@ -49,14 +50,14 @@ def check_subscription_status():
     response = requests.get(url, headers=headers)
     response_json = response.json()["response"]
     if response_json:
-        print(
-            f"Hi {response_json['account']['firstname']}!\n"
+        logging.info(
+            f"Hi {response_json['account']['firstname']}! "
             f"Your {response_json['subscription']['plan']} plan is active until {response_json['subscription']['end']}\n"
             f"Current usage: {response_json['requests']['current']}/{response_json['requests']['limit_day']}\n"
         )
         current_pull_limit = response_json['requests']['limit_day'] - response_json['requests']['current']
         return current_pull_limit
-    print("[ERROR] You have reached the request limit for today. Try again later.")
+    logging.error("[ERROR] You have reached the request limit for today. Try again later.")
     return 0
 
 
@@ -68,17 +69,18 @@ def get_json_from_api(endpoint: str):
     }
 
     response = requests.get(url, headers=headers)
-    print(f"Getting data from: {url}")
+    logging.info(f"Getting data from: {url}")
     if response.status_code == 200:
         if len(response.json()["response"]) == 0:
-            print(f"Response empty. No data have been pulled.")
+            logging.info(f"Response empty. No data have been pulled.")
             return None
         if response.json()["paging"]["total"] > 1:
-            print(f"[FIXME] There are more than 1 page. Please handle this asap.")
+            # FIXME: handle more than 1 page
+            logging.warning(f"[FIXME] There are more than 1 page. Please handle this asap.")
             return None
         return response
     else:
-        print(f"Error fetching data from API. Status Code: {response.status_code}")
+        logging.error(f"Error fetching data from API. Status Code: {response.status_code}")
         return None
 
 
@@ -105,10 +107,10 @@ def pull_single_league_fixtures_for_all_seasons(league_id_to_pull: int, pull_lim
             count = 0
             for season_year in season_years:
                 if count < pull_limit:
-                    print(f"Sleeping for a few seconds to avoid reaching limit.")
+                    logging.info(f"Sleeping for a few seconds to avoid reaching limit.")
                     sleep(SLEEP_TIME)
                     try:
-                        print(
+                        logging.info(
                             f"Pulling fixtures for {league_name}, season: {season_year[0]}..."
                         )
                         season_data = get_json_from_api(
@@ -118,11 +120,11 @@ def pull_single_league_fixtures_for_all_seasons(league_id_to_pull: int, pull_lim
                             season_data, f"{league_id}-{league_name}-{season_year[0]}", "fixtures/league_seasons"
                         )
                     except Exception as e:
-                        print(e)
+                        logging.error(e)
                 count += 1
         except Exception as e:
             # Handle any exceptions or errors that occur during the connection test
-            print(f"Connection Error: {e}")
+            logging.error(f"Connection Error: {e}")
             raise Exception
 
 
@@ -143,7 +145,7 @@ def pull_single_league_fixtures_for_single_season(league_id_to_pull: int, season
             league_id, league_name = session.query(League.league_id, League.name).filter(
                 League.league_id == league_id_to_pull
             ).first()
-            print(f"Pulling fixtures for {league_name}, season: {season_id_to_pull}...")
+            logging.info(f"Pulling fixtures for {league_name}, season: {season_id_to_pull}...")
             season_data = get_json_from_api(
                 f"fixtures?league={league_id}&season={season_id_to_pull}"
             )
@@ -151,7 +153,7 @@ def pull_single_league_fixtures_for_single_season(league_id_to_pull: int, season
                 season_data, f"{league_id}-{league_name}-{season_id_to_pull}", "fixtures/league_seasons"
             )
         except Exception as e:
-            print(e)
+            logging.error(e)
 
 
 def pull_updated_fixtures() -> None:
@@ -169,7 +171,7 @@ def pull_updated_fixtures() -> None:
     finished_statuses = "FT-AET-PEN-WO"
 
     if not dates_to_pull:
-        print(f"No dates to update.")
+        logging.info(f"No dates to update.")
 
     for single_date in dates_to_pull:
         endpoint = f"fixtures?date={single_date}&status={finished_statuses}"
@@ -192,20 +194,20 @@ def pull_teams_for_countries_list(country_ids_list_to_pull: list, pull_limit: in
             if count >= pull_limit:
                 break
 
-            print(f"Sleeping for a few seconds to avoid reaching limit.")
+            logging.info(f"Sleeping for a few seconds to avoid reaching limit.")
             sleep(SLEEP_TIME)
 
             try:
-                print(f"Pulling teams for {country_name}...")
+                logging.info(f"Pulling teams for {country_name}...")
                 teams_data = get_json_from_api(f"teams?country={country_name}")
                 # Check if teams_data is not empty
                 if not teams_data:
-                    print("No data found for", country_name)
+                    logging.info("No data found for", country_name)
                     continue
                 write_response_to_json(teams_data, f"{country_id}_{country_name}", "teams")
                 count += 1
             except Exception as e:
-                print(e)
+                logging.error(e)
                 continue
 
 
@@ -227,10 +229,10 @@ def pull_statistics_fixtures_for_leagues_and_seasons(
             count = 0
             for fixture in fixtures:
                 if count < pull_limit:
-                    print(f"Sleeping for a few seconds to avoid reaching limit.")
+                    logging.info(f"Sleeping for a few seconds to avoid reaching limit.")
                     sleep(SLEEP_TIME)
                     try:
-                        print(
+                        logging.info(
                             f"Pulling statistics fixtures for fixture: {fixture.fixture_id} "
                             f"from league: {fixture.league_name}, season: {season_year_to_pull}..."
                         )
@@ -239,7 +241,7 @@ def pull_statistics_fixtures_for_leagues_and_seasons(
                         )
 
                     except Exception as e:
-                        print(e)
+                        logging.error(e)
                         continue
                 write_response_to_json(
                     statistics_fixtures_data, f"{fixture.fixture_id}_statistics_fixtures", "statistics_fixtures"
@@ -267,10 +269,10 @@ def pull_player_statistics_for_leagues_and_seasons(
             count = 0
             for fixture in fixtures:
                 if count < pull_limit:
-                    print(f"Sleeping for a few seconds to avoid reaching limit.")
+                    logging.info(f"Sleeping for a few seconds to avoid reaching limit.")
                     sleep(SLEEP_TIME)
                     try:
-                        print(
+                        logging.info(
                             f"Pulling player statistics for fixture: {fixture.fixture_id} "
                             f"from league: {fixture.league_name}, season: {season_year_to_pull}..."
                         )
@@ -278,7 +280,7 @@ def pull_player_statistics_for_leagues_and_seasons(
                             f"fixtures/players?fixture={fixture.fixture_id}"
                         )
                     except Exception as e:
-                        print(e)
+                        logging.error(e)
                         continue
                 write_response_to_json(
                     statistics_fixtures_data, f"{fixture.fixture_id}_player_statistics", "player_statistics"
@@ -286,7 +288,7 @@ def pull_player_statistics_for_leagues_and_seasons(
                 count += 1
         except Exception as e:
             # Handle any exceptions or errors that occur during the connection test
-            print(f"Connection Error: {e}")
+            logging.error(f"Connection Error: {e}")
             raise Exception
 
 
@@ -309,10 +311,10 @@ def pull_events_for_leagues_and_seasons(
             count = 0
             for fixture in fixtures:
                 if count < pull_limit:
-                    print(f"Sleeping for a few seconds to avoid reaching limit.")
+                    logging.info(f"Sleeping for a few seconds to avoid reaching limit.")
                     sleep(SLEEP_TIME)
                     try:
-                        print(
+                        logging.info(
                             f"Pulling player statistics for fixture: {fixture.fixture_id} "
                             f"from league: {fixture.league_name}, season: {season_year_to_pull}..."
                         )
@@ -323,11 +325,11 @@ def pull_events_for_leagues_and_seasons(
                             events_fixtures_data, f"{fixture.fixture_id}_events", "events"
                         )
                     except Exception as e:
-                        print(e)
+                        logging.error(e)
                 count += 1
         except Exception as e:
             # Handle any exceptions or errors that occur during the connection test
-            print(f"Connection Error: {e}")
+            logging.error(f"Connection Error: {e}")
             raise Exception
 
 
@@ -339,5 +341,5 @@ def write_response_to_json(response, filename, subdir=""):
                 json.dump(response.json(), file)
             return True
         except (AttributeError, IOError) as e:
-            print(f"[ERROR] Writing response to '{file_path}' has failed: {e}")
+            logging.error(f"Writing response to '{file_path}' has failed: {e}")
     return False
