@@ -1,56 +1,103 @@
 import logging
+import pandas as pd
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
-from config.config import DB_URL
 import models.base as base_model
 
-### PostgreSQL commands ###
-# DROP SCHEMA public CASCADE; - removes all tables & relations from database
-# \l list databases
-# \d list tables
+from contextlib import contextmanager
+from typing import Callable
+from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import sessionmaker, scoped_session, Query
+
+from config.db_config import DbConfig
 
 
-# Create the engine
-engine = create_engine(DB_URL)
+class Db:
+    def __init__(self):
+        self.config = DbConfig()
+        self.engine = create_engine(self._construct_db_url(self.config))
+        self.Session = scoped_session(sessionmaker(bind=self.engine))
 
+    @staticmethod
+    def _construct_db_url(config: DbConfig) -> str:
+        """
+        Constructs the database URL from a configuration dictionary.
+        """
+        user = config.DB_USER
+        password = config.DB_PASSWORD
+        host = config.DB_HOST
+        port = config.DB_PORT
+        database = config.DB_NAME
 
-def get_engine():
-    return engine
+        return f"postgresql://{user}:{password}@{host}:{port}/{database}"
 
-
-def check_db_connection():
-    Session = sessionmaker(bind=get_engine())
-    with Session() as session:
+    @contextmanager
+    def get_session(self):
+        session = self.Session
         try:
-            # Execute a simple query to fetch the PostgreSQL version
-            version = session.execute(text("SELECT version();")).scalar()
-            # Display the PostgreSQL version
-            logging.info(f"Connected to PostgreSQL version: {version}")
-            return True
+            yield session
+        finally:
+            session.close()
+
+    def execute_raw_query(self, query: str | Query) -> pd.DataFrame:
+        """
+                Executes a raw SQL query or SQLAlchemy query object.
+        """
+        try:
+            with self.engine.connect() as connection:
+                if isinstance(query, str):
+                    return pd.read_sql_query(query, connection)
+                else:
+                    return pd.read_sql_query(query.statement, connection)
+        except SQLAlchemyError as e:
+            logging.error(f"Database query failed: {e}")
+            raise
         except Exception as e:
-            # Handle any exceptions or errors that occur during the connection test
-            logging.error(f"Connection Error: {e}")
-            raise Exception
+            logging.error(f"Unexpected error occurred: {e}")
+            raise
 
+    def execute_orm_query(self, query: Callable[[sessionmaker], any]) -> any:
+        """
+                Executes an ORM query function that takes a session as an argument.
+        """
+        try:
+            with self.get_session() as session:
+                return query(session)
+        except SQLAlchemyError as e:
+            logging.error(f"Database query failed: {e}")
+            raise
+        except Exception as e:
+            logging.error(f"Unexpected error occurred: {e}")
+            raise
 
-def create_all_tables():
-    try:
-        # Create all tables in the database
-        logging.info("Creating all tables...")
-        base_model.Base.metadata.create_all(bind=engine)
-    except Exception as e:
-        # Handle any exceptions or errors that occur during the connection test
-        logging.error(f"Error while creating tables: {e}")
-        raise Exception
+    def close(self):
+        """
+                Closes the engine and removes the session.
+        """
+        try:
+            self.Session.remove()
+            self.engine.dispose()
+        except Exception as e:
+            logging.error(f"Error during closing resources: {e}")
 
+    def create_all_tables(self):
+        with self.get_session() as session:
+            try:
+                # Create all tables in the database
+                logging.info("Creating all tables...")
+                base_model.Base.metadata.create_all(bind=self.engine)
+            except Exception as e:
+                # Handle any exceptions or errors that occur during the connection test
+                logging.error(f"Error while creating tables: {e}")
+                raise Exception
 
-def drop_all_tables():
-    try:
-        if base_model.Base.metadata.tables:
-            logging.info("Dropping all tables...")
-            base_model.Base.metadata.drop_all(bind=engine)
-    except Exception as e:
-        # Handle any exceptions or errors that occur during the connection test
-        logging.error(f"Error while dropping tables: {e}")
-        raise Exception
+    def drop_all_tables(self):
+        with self.get_session() as session:
+            try:
+                if base_model.Base.metadata.tables:
+                    logging.info("Dropping all tables...")
+                    base_model.Base.metadata.drop_all(bind=self.engine)
+            except Exception as e:
+                # Handle any exceptions or errors that occur during the connection test
+                logging.error(f"Error while dropping tables: {e}")
+                raise Exception
