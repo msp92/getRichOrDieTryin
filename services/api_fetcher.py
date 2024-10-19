@@ -1,15 +1,16 @@
 import json
 import logging
 import requests
+from requests import Response
 
 from config.api_config import SOURCE_DIR, ApiConfig
 
 
 class APIFetcher:
-    def __init__(self, config: ApiConfig):
+    def __init__(self, config: ApiConfig) -> None:
         self.config = config
 
-    def fetch_data(self, endpoint: str, **kwargs):
+    def fetch_data(self, endpoint: str, **kwargs) -> Response | None:
         # Check subscription status before making the request
         if not self.config.has_quota():
             raise Exception("Quota exceeded. Cannot make any more requests.")
@@ -35,14 +36,14 @@ class APIFetcher:
             )
             return None
 
-    def write_response_to_json(self, response, filename, subdir=""):
+    @staticmethod
+    def write_response_to_json(response, filename, subdir="") -> None:
         if response:
             # file_path = os.path.join(SOURCE_DIR, subdir, f"{filename}.json")
             file_path = f"../{SOURCE_DIR}/{subdir}/{filename}.json"
             try:
                 with open(file_path, "w") as file:
                     json.dump(response.json(), file)
-                return True
             except (AttributeError, IOError) as e:
                 logging.error(f"Writing response to '{file_path}' has failed: {e}")
-        return False
+                raise e

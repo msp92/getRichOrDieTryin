@@ -5,13 +5,13 @@ from sqlalchemy.ext.declarative import declarative_base
 import pandas as pd
 
 from services.db import Db
-from utils.vars import CURRENT_UTC_DATETIME
+from helpers.vars import CURRENT_UTC_DATETIME
 
 db = Db()
 
 
 class BaseMixin:
-    __mapper__ = None
+    __mapper__ = str | None
     metadata = None
     __table__ = None
 
@@ -37,8 +37,7 @@ class BaseMixin:
     @classmethod
     def upsert(cls, df: pd.DataFrame) -> None:
         """
-        Class method to perform bulk upsert using a Pandas DataFrame.
-        `cls` refers to the class, and `df` is a DataFrame with records to upsert.
+        Class method performing bulk upsert of provided DataFrame.
         """
         with db.get_session() as session:
             try:
