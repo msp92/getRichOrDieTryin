@@ -5,11 +5,14 @@ from data_processing.data_aggregations import (
     aggregate_breaks_team_stats_from_raw,
     calculate_breaks_team_stats_shares_from_agg,
 )
+from data_processing.data_parsing import parse_fixtures
+from helpers.utils import move_json_files_between_directories
 from models.analytics.breaks import Break, BreaksTeamStats, BreaksTeamStatsShares
 from models.data.fixtures.fixtures import Fixture
 from pathlib import Path
 
 from config.api_config import ApiConfig
+from models.data.main import Team
 from services.fixtures_fetcher import FixtureFetcher
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
@@ -22,18 +25,18 @@ api_config = ApiConfig()
 fixture_fetcher = FixtureFetcher(config=api_config)
 
 
-# #
-# fixture_fetcher.pull_finished_fixtures()
 #
-# ### Update specific tables with newly pulled data ###
-#
-# ### Fixtures ###
-# df_updated_fixtures = parse_fixtures("updates")
-# insert_missing_teams_into_db(df_updated_fixtures)
-# Fixture.upsert(df_updated_fixtures)
-# move_json_files_between_directories(
-#     "/data/fixtures/updates", "/data/fixtures/updates/processed"
-# )
+fixture_fetcher.pull_finished_fixtures()
+
+### Update specific tables with newly pulled data ###
+
+### Fixtures ###
+df_updated_fixtures = parse_fixtures("updates")
+Team.insert_missing_teams_into_db(df_updated_fixtures)
+Fixture.upsert(df_updated_fixtures)
+move_json_files_between_directories(
+    "/data/fixtures/updates", "/data/fixtures/updates/processed"
+)
 
 ### Fixture Stats ###
 

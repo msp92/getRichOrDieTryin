@@ -2,7 +2,7 @@ import csv
 
 import pandas as pd
 
-from config.api_config import SOURCE_DIR
+from config.vars import SOURCE_DIR
 
 
 def transform_statistics_fixtures(json_data):

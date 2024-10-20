@@ -4,7 +4,7 @@ from time import sleep
 from requests import Response
 from sqlalchemy import and_
 
-from config.api_config import SLEEP_TIME
+from config.vars import SLEEP_TIME
 from models.data.fixtures import Fixture
 from services.api_fetcher import APIFetcher
 from services.db import Db

@@ -14,7 +14,7 @@ from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import relationship
 from datetime import date, datetime
 from models.data.main.leagues import League  # NOQA: F401
-from config.api_config import SOURCE_DIR
+from config.vars import SOURCE_DIR
 from models.base import Base
 from services.db import Db
 

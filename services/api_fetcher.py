@@ -3,7 +3,8 @@ import logging
 import requests
 from requests import Response
 
-from config.api_config import SOURCE_DIR, ApiConfig
+from config.api_config import ApiConfig
+from config.vars import SOURCE_DIR
 
 
 class APIFetcher:

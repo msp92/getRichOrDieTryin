@@ -2,7 +2,7 @@ import logging
 import os
 import pandas as pd
 from datetime import datetime
-from config.api_config import SOURCE_DIR
+from config.vars import SOURCE_DIR
 from helpers.utils import get_df_from_json
 
 

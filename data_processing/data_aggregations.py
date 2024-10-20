@@ -1,4 +1,13 @@
+import logging
+
 import pandas as pd
+
+from config.vars import SOURCE_DIR
+from models.data.fixtures import Fixture
+from models.data.main import Team
+from services.db import Db
+
+db = Db()
 
 
 def aggregate_breaks_team_stats_from_raw(df):
@@ -172,3 +181,121 @@ def calculate_breaks_team_stats_shares_from_agg(df):
         shares_df[f"{column}_share"] = df[column] / df["total"]
 
     return shares_df
+
+
+def calculate_no_draw_csv_for_all_teams() -> None:
+    teams_df = Team.get_df_from_table()
+    team_stats_df_list = []
+    for idx, row in teams_df.iterrows():
+        try:
+            team_stats_grouped, team_stats_total = Fixture.get_season_stats_by_team(
+                row["team_id"], "2023"
+            )
+            team_stats_total.filter(items=["team_name", "form"])
+            team_stats_df_list.append(team_stats_total)
+        except Exception as e:  # check what is the error and handle it
+            logging.error(f"Error: {str(e)}")
+            continue
+
+    final_df = pd.concat(team_stats_df_list)
+    final_df["no_draw"] = (
+        final_df["form"].str[::-1].apply(lambda x: x.find("D") if "D" in x else -1)
+    )
+    final_df = final_df.filter(items=["team_name", "no_draw"])
+    final_df = final_df[final_df["no_draw"] > 0]
+    final_df.to_csv(
+        f"{SOURCE_DIR}/team_stats_no_draw.csv",
+        index=False,
+    )
+
+
+# Update table with single result
+def update_table(table, home_team, away_team, home_goals, away_goals):
+    for team, goals, opponent_goals in [
+        (home_team, home_goals, away_goals),
+        (away_team, away_goals, home_goals),
+    ]:
+
+        if team not in table["Team"].values:
+            table = pd.concat(
+                [
+                    table,
+                    pd.DataFrame(
+                        [
+                            {
+                                "Team": team,
+                                "G": 0,
+                                "W": 0,
+                                "D": 0,
+                                "L": 0,
+                                "GF": 0,
+                                "GA": 0,
+                                "PTS": 0,
+                            }
+                        ]
+                    ),
+                ]
+            )
+
+        table.loc[table["Team"] == team, "G"] += 1
+        table.loc[table["Team"] == team, "GF"] += goals
+        table.loc[table["Team"] == team, "GA"] += opponent_goals
+
+        if goals > opponent_goals:
+            table.loc[table["Team"] == team, "PTS"] += 3
+            table.loc[table["Team"] == team, "W"] += 1
+        elif goals == opponent_goals:
+            table.loc[table["Team"] == team, "PTS"] += 1
+            table.loc[table["Team"] == team, "D"] += 1
+        else:
+            table.loc[table["Team"] == team, "L"] += 1
+    return table
+
+
+# Calculate table for input df
+def calculate_table(league_id, season_year, rounds="all_finished"):
+    """
+    Create full table or as of round to calculate custom power factor
+    """
+    with db.get_session() as session:
+        try:
+            fixtures_df = pd.read_sql_query(
+                session.query(Fixture)
+                .filter(
+                    (Fixture.league_id == league_id)
+                    & (Fixture.season_year == season_year)
+                    & (Fixture.status == "FT")
+                )
+                .statement,
+                db.engine,
+            )
+        except Exception:
+            raise Exception
+
+    filtered_fixtures_df = Fixture.filter_fixtures_by_rounds(fixtures_df, rounds)
+
+    table = pd.DataFrame(
+        columns=[
+            "Team",
+            "G",
+            "W",
+            "D",
+            "L",
+            "GF",
+            "GA",
+            "PTS",
+        ]
+    )
+
+    for idx, result in filtered_fixtures_df.iterrows():
+        home_team = result["home_team_name"]
+        away_team = result["away_team_name"]
+        home_goals = int(result["goals_home"])
+        away_goals = int(result["goals_away"])
+        table = update_table(table, home_team, away_team, home_goals, away_goals)
+
+    table = table.sort_values(by=["PTS", "GF"], ascending=[False, False]).reset_index(
+        drop=True
+    )
+    table.index += 1
+    return table
