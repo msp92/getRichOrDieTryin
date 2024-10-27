@@ -1,17 +1,20 @@
 import logging
+import sys
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
 
-from config.vars import SOURCE_DIR
 from data_processing.data_processing import load_all_files_from_directory
-from data_processing.data_transformations import create_referees_lkp_dict_from_csv
 from models.data.main.countries import Country
 from models.data.fixtures.fixtures import Fixture
 from models.data.main.leagues import League
+from models.data.main.referees import Referee
 from models.data.main.seasons import Season
 from models.data.main.teams import Team
-from helpers.utils import get_df_from_json, append_data_to_csv
+from helpers.utils import get_df_from_json
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 
 def parse_countries() -> pd.DataFrame:
@@ -138,24 +141,8 @@ def parse_fixtures(subdir: str) -> pd.DataFrame:
         "Int64"
     )
 
-    # Adjust referee names using generated mapping
-    referee_mapping = create_referees_lkp_dict_from_csv("referees_lookup_19052024.csv")
-
-    def map_referee(referee_name: str, mapping: dict):
-        if referee_name in mapping:
-            return mapping[referee_name]
-        elif referee_name is None:
-            return None
-        else:
-            append_data_to_csv(
-                referee_name, f"../{SOURCE_DIR}/fixtures/new_referees.csv"
-            )
-            logging.warning(
-                f"Referee '{referee_name}' not found in the mapping dictionary"
-            )
-
     df_fixtures["fixture.referee"] = df_fixtures["fixture.referee"].apply(
-        lambda referee_name: map_referee(referee_name, referee_mapping)
+        lambda referee_name: Referee.map_referee_name(referee_name) if referee_name else None
     )
 
     final_df = (
@@ -201,7 +188,3 @@ def parse_fixture_player_stats() -> pd.DataFrame:
     logging.info("** Parsing fixture players stats data **")
     df_player_stats = load_all_files_from_directory("player_statistics")
     return df_player_stats
-
-
-def parse_referees() -> pd.DataFrame:
-    pass
