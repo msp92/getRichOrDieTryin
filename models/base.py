@@ -5,7 +5,6 @@ from sqlalchemy.ext.declarative import declarative_base
 import pandas as pd
 
 from services.db import Db
-from helpers.vars import CURRENT_UTC_DATETIME
 
 db = Db()
 
@@ -29,10 +28,10 @@ class BaseMixin:
         with db.get_session() as session:
             try:
                 df = pd.read_sql_query(session.query(cls).statement, db.engine)
-                return df
             except Exception as e:
                 logging.error(f"Error while getting {cls.__name__} data: {str(e)}")
                 raise Exception
+            return df
 
     @classmethod
     def upsert(cls, df: pd.DataFrame) -> None:
@@ -43,7 +42,7 @@ class BaseMixin:
             try:
                 # Convert DataFrame to list of dictionaries
                 records = df.to_dict(orient="records")
-                existing_ids = cls.get_existing_ids(df)
+                existing_ids = cls.get_existing_records(df)
                 cls.bulk_insert(records, existing_ids)
                 cls.bulk_update(records, existing_ids)
             except Exception as e:
@@ -52,35 +51,33 @@ class BaseMixin:
                 logging.error(f"Error while upserting {cls.__name__} data: {e}")
 
     @classmethod
-    def get_existing_ids(cls, df: DataFrame) -> list[str]:
+    def get_existing_records(cls, df: DataFrame) -> DataFrame:
         primary_key = cls.__mapper__.primary_key[0].name
-        logging.debug(primary_key)
 
-        # Separate records into those needing insert and those needing update
+        # Get IDs of input DataFrame
         ids = df[primary_key].tolist()
         if ids:
             with db.get_session() as session:
-                existing_records = (
+                # For input DataFrame get existing records from Db
+                existing_records = pd.read_sql_query(
                     session.query(cls)
                     .filter(cls.__mapper__.primary_key[0].in_(ids))
-                    .all()
+                    .statement,
+                    db.engine,
                 )
-            return [getattr(record, primary_key) for record in existing_records]
+                return existing_records
 
     @classmethod
-    def bulk_insert(cls, records: list[dict], existing_ids: list[str]) -> None:
+    def bulk_insert(cls, records: list[dict], existing_records: DataFrame) -> None:
         primary_key = cls.__mapper__.primary_key[0].name
 
         with db.get_session() as session:
             try:
                 # Prepare new records for insertion
                 new_records = [
-                    {
-                        **record,
-                        "update_date": CURRENT_UTC_DATETIME,
-                    }  # Add the new key:value pair
+                    record
                     for record in records
-                    if record[primary_key] not in existing_ids
+                    if record[primary_key] not in existing_records[primary_key].values
                 ]
                 if new_records:
                     logging.info(f"Inserting new {cls.__name__} records")
@@ -97,14 +94,22 @@ class BaseMixin:
                 logging.error(f"Error while inserting {cls.__name__} data: {e}")
 
     @classmethod
-    def bulk_update(cls, records: list[dict], existing_ids: list[str]) -> None:
+    def bulk_update(cls, records: list[dict], existing_records: DataFrame) -> None:
         primary_key = cls.__mapper__.primary_key[0].name
 
         with db.get_session() as session:
             try:
                 # Prepare records for updating
                 records_to_update = [
-                    record for record in records if record[primary_key] in existing_ids
+                    record
+                    for record in records
+                    if record[primary_key] in existing_records[primary_key].values
+                    and not cls._is_same_record(
+                        record,
+                        existing_records.loc[
+                            existing_records[primary_key] == record[primary_key]
+                        ].squeeze(),
+                    )
                 ]
                 if records_to_update:
                     logging.info(f"Updating {cls.__name__} records")
@@ -119,6 +124,18 @@ class BaseMixin:
                 # Rollback the session in case of an error to discard the changes
                 session.rollback()
                 logging.error(f"Error while updating {cls.__name__} data: {e}")
+
+    @classmethod
+    def _is_same_record(cls, input_record: dict, existing_record: pd.Series) -> bool:
+        """Helper function to check if the input record is the same as the existing record."""
+        # Compare each field, except the primary key
+        for key, value in input_record.items():
+            if (
+                key != cls.__mapper__.primary_key[0].name
+                and value != existing_record[key]
+            ):
+                return False
+        return True
 
 
 # Create a declarative base
