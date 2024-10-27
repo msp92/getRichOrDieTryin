@@ -1,5 +1,8 @@
+import logging
+
 import pandas as pd
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
+from sqlalchemy.exc import OperationalError
 
 from models.data.fixtures.fixtures import Fixture
 from services.db import Db
@@ -35,63 +38,64 @@ class Break(Fixture):
     goals_away_ht = Column(Integer)
 
     @staticmethod
-    def get_breaks_team_stats_raw():
+    def get_breaks_team_stats_raw() -> pd.DataFrame:
         with db.get_session() as session:
             try:
-                sql_stmnt = """
-                                WITH home AS (
-                                                SELECT
-                                                        league_id,
-                                                        home_team_id AS team_id,
-                                                        home_team_name AS team_name,
-                                                        season_year,
-                                                        season_stage,
-                                                        round,
-                                                        referee,
-                                                        'home' AS side,
-                                                        EXTRACT(YEAR FROM date) AS year,
-                                                        EXTRACT(MONTH FROM date) AS month,
-                                                        EXTRACT(DAY FROM date) AS day
-                                                FROM
-                                                        analytics_breaks.breaks
-                                ),
-                                away AS (
-                                                SELECT
-                                                        league_id,
-                                                        away_team_id AS team_id,
-                                                        away_team_name AS team_name,
-                                                        season_year,
-                                                        season_stage,
-                                                        round,
-                                                        referee,
-                                                        'away' AS side,
-                                                        EXTRACT(YEAR FROM date) AS year,
-                                                        EXTRACT(MONTH FROM date) AS month,
-                                                        EXTRACT(DAY FROM date) AS day
-                                                FROM
-                                                        analytics_breaks.breaks
-                                )
-                                SELECT * FROM home
-                                UNION
-                                SELECT * FROM away
-                """
-                breaks_team_stats_raw = session.execute(sql_stmnt).all()
-                break_team_stats_raw_df = pd.DataFrame(
-                    breaks_team_stats_raw,
-                    columns=[
+                breaks_df = pd.read_sql_query(
+                    session.query(Fixture).statement,
+                    db.engine,
+                )
+
+                # Filter rows where the date is greater than or equal to '2020-01-01'
+                filtered_breaks_df = breaks_df[breaks_df["date"] >= "2020-01-01"]
+
+                # Create the 'home' DataFrame
+                home_df = filtered_breaks_df[
+                    [
                         "league_id",
-                        "team_id",
-                        "team_name",
+                        "home_team_id",
+                        "home_team_name",
                         "season_year",
                         "season_stage",
                         "round",
                         "referee",
-                        "side",
-                        "year",
-                        "month",
-                        "day",
-                    ],
+                        "date",
+                    ]
+                ].copy()
+                home_df["side"] = "home"
+                home_df["year"] = home_df["date"].dt.year
+                home_df["month"] = home_df["date"].dt.month
+                home_df["day"] = home_df["date"].dt.day
+                home_df.rename(
+                    columns={"home_team_id": "team_id", "home_team_name": "team_name"},
+                    inplace=True,
                 )
-                return break_team_stats_raw_df
-            except Exception:
-                raise Exception
+
+                # Create the 'away' DataFrame
+                away_df = filtered_breaks_df[
+                    [
+                        "league_id",
+                        "away_team_id",
+                        "away_team_name",
+                        "season_year",
+                        "season_stage",
+                        "round",
+                        "referee",
+                        "date",
+                    ]
+                ].copy()
+                away_df["side"] = "away"
+                away_df["year"] = away_df["date"].dt.year
+                away_df["month"] = away_df["date"].dt.month
+                away_df["day"] = away_df["date"].dt.day
+                away_df.rename(
+                    columns={"away_team_id": "team_id", "away_team_name": "team_name"},
+                    inplace=True,
+                )
+
+                # Concatenate home_df and away_df
+                result_df = pd.concat([home_df, away_df], ignore_index=True)
+            except OperationalError as e:
+                logging.error(f"OperationalError occurred: {str(e)}")
+                raise  # This raises the original error
+        return result_df
