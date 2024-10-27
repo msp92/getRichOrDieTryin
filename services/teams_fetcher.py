@@ -1,7 +1,7 @@
 import logging
 from time import sleep
 
-from config.api_config import SLEEP_TIME
+from config.vars import SLEEP_TIME
 from models.data.main import Country
 from services.api_fetcher import APIFetcher
 from services.db import Db

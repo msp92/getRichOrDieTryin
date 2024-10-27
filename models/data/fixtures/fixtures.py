@@ -398,55 +398,8 @@ class Fixture(Base):
                     db.engine,
                 )
             except InvalidRequestError as e:
-                # Rollback the session in case of an error to discard the changes
-                session.rollback()
                 raise InvalidRequestError(
                     f"Error while reading {cls.__name__} data: {e}"
                 )
+        return overcome_games_df.drop(columns=['update_date'])
 
-            return overcome_games_df
-
-    # @classmethod
-    # def create_referees_lookup(cls):
-    #     # Function to extract the group
-    #     def parse_referee_name(referee_name):
-    #         # Delete everything after comma
-    #         filtered = referee_name.split(",")[0]
-    #         # Extract the first initial and last name
-    #         parts = filtered.split()
-    #         result = f"{parts[0][0]}. {parts[-1]}"
-    #         return result
-    #
-    #     Session = sessionmaker(bind=get_engine())
-    #     with Session() as session:
-    #         try:
-    #             referees_df = pd.read_sql_query(
-    #                 session.query(cls.referee).filter(cls.referee.isnot(None)).distinct().statement,
-    #                 get_engine()
-    #             )
-    #
-    #             # Define a similarity threshold
-    #             surname_threshold = 80
-    #             firstname_threshold = 90
-    #
-    #             # Merge referees written in different formats
-    #             referees_lkp = defaultdict(list)
-    #             temp_cnt = 0
-    #             for name in referees_df["referee"].tolist():
-    #                 print(temp_cnt)
-    #                 parsed_name = parse_referee_name(name)
-    #                 matched = False
-    #                 for group_name, group_names in referees_lkp.items():
-    #                     if fuzz.token_sort_ratio(parsed_name, group_name) >= surname_threshold:
-    #                         # Check if first name is sufficiently different
-    #                         firstnames = [parse_referee_name(n) for n in group_names]
-    #                         if all(fuzz.token_sort_ratio(parse_referee_name(name), fn) < firstname_threshold for fn in firstnames):
-    #                             referees_lkp[group_name].append(name)
-    #                             matched = True
-    #                             break
-    #                 if not matched:
-    #                     referees_lkp[parsed_name].append(name)
-    #                 temp_cnt += 1
-    #         except Exception as e:
-    #             raise Exception
-    #     return referees_lkp

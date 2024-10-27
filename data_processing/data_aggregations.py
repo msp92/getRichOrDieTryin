@@ -10,7 +10,7 @@ from services.db import Db
 db = Db()
 
 
-def aggregate_breaks_team_stats_from_raw(df):
+def aggregate_breaks_team_stats_from_raw(df: pd.DataFrame) -> pd.DataFrame:
     # Initialize the dataframe with team_id and team_name
     breaks_team_stats_df = df.drop_duplicates("team_id")[
         ["team_id", "team_name"]
@@ -60,14 +60,6 @@ def aggregate_breaks_team_stats_from_raw(df):
         )
 
     years = [
-        2012,
-        2013,
-        2014,
-        2015,
-        2016,
-        2017,
-        2018,
-        2019,
         2020,
         2021,
         2022,
@@ -166,7 +158,7 @@ def aggregate_breaks_team_stats_from_raw(df):
     return breaks_team_stats_df
 
 
-def calculate_breaks_team_stats_shares_from_agg(df):
+def calculate_breaks_team_stats_shares_from_agg(df: pd.DataFrame) -> pd.DataFrame:
     columns_to_calculate = []
     shares_df = df[["team_id", "team_name", "last_break", "total"]].copy()
 
@@ -210,7 +202,7 @@ def calculate_no_draw_csv_for_all_teams() -> None:
 
 
 # Update table with single result
-def update_table(table, home_team, away_team, home_goals, away_goals):
+def update_table(table, home_team, away_team, home_goals, away_goals) -> pd.DataFrame:
     for team, goals, opponent_goals in [
         (home_team, home_goals, away_goals),
         (away_team, away_goals, home_goals),

@@ -1,8 +1,14 @@
+import logging
+
 from config.api_config import ApiConfig
 from data_processing.data_parsing import parse_seasons, parse_leagues, parse_countries
 from models.data.main import Country, League, Season
 from services.countries_fetcher import CountryFetcher
 from services.leagues_fetcher import LeagueFetcher
+
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 api_config = ApiConfig()
 

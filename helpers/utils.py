@@ -9,9 +9,6 @@ from data_processing.data_transformations import (
     transform_player_statistics,
     transform_events,
 )
-from services.db import Db
-
-db = Db()
 
 
 def get_df_from_json(filename: str, sub_dir="") -> pd.DataFrame:
@@ -60,7 +57,7 @@ def append_data_to_csv(data, file_path) -> None:
     # Write data to CSV file
     with open(file_path, mode="a", newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
-        writer.writerow(data)
+        writer.writerow([data])
 
 
 def move_json_files_between_directories(source_dir, target_dir) -> None:

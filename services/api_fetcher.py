@@ -38,7 +38,7 @@ class APIFetcher:
             return None
 
     @staticmethod
-    def write_response_to_json(response, filename, subdir="") -> None:
+    def write_response_to_json(response: Response | None, filename: str, subdir="") -> None:
         if response:
             # file_path = os.path.join(SOURCE_DIR, subdir, f"{filename}.json")
             file_path = f"../{SOURCE_DIR}/{subdir}/{filename}.json"

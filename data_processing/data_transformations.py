@@ -91,7 +91,7 @@ def create_referees_lkp_dict_from_csv(filename):
     with open(
         f"../{SOURCE_DIR}/fixtures/{filename}", mode="r", encoding="utf-8"
     ) as infile:
-        reader = csv.reader(infile)
+        reader = csv.reader(infile, delimiter=";")
         next(reader)  # Skip the header row
         for rows in reader:
             original_name, silver_name = rows

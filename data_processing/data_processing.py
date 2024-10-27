@@ -35,6 +35,7 @@ def load_all_files_from_directory(directory_path: str) -> pd.DataFrame:
                             file_name[:-5], sub_dir=directory_path
                         )
 
+                        # FIXME: likely to change
                         # Assign timestamp from filename for each single fixture
                         if directory_path == "fixtures/updates":
                             timestamp_str = file_name.split("_")[2].split(".")[0]

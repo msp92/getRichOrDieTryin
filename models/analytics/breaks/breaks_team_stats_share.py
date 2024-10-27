@@ -1,11 +1,9 @@
-import logging
 import pandas as pd
 from sqlalchemy import Column, Integer, String, Date, Numeric, or_
 
 from models.base import Base
 from models.data.fixtures.fixtures import Fixture
 from services.db import Db
-from helpers.vars import CURRENT_UTC_DATETIME
 
 db = Db()
 
@@ -39,14 +37,14 @@ class BreaksTeamStatsShares(Base):
     beg_month_share = Column(Numeric(4, 2))
     mid_month_share = Column(Numeric(4, 2))
     end_month_share = Column(Numeric(4, 2))
-    c_2012_share = Column("2012_share", Numeric(4, 2))
-    c_2013_share = Column("2013_share", Numeric(4, 2))
-    c_2014_share = Column("2014_share", Numeric(4, 2))
-    c_2015_share = Column("2015_share", Numeric(4, 2))
-    c_2016_share = Column("2016_share", Numeric(4, 2))
-    c_2017_share = Column("2017_share", Numeric(4, 2))
-    c_2018_share = Column("2018_share", Numeric(4, 2))
-    c_2019_share = Column("2019_share", Numeric(4, 2))
+    # c_2012_share = Column("2012_share", Numeric(4, 2))
+    # c_2013_share = Column("2013_share", Numeric(4, 2))
+    # c_2014_share = Column("2014_share", Numeric(4, 2))
+    # c_2015_share = Column("2015_share", Numeric(4, 2))
+    # c_2016_share = Column("2016_share", Numeric(4, 2))
+    # c_2017_share = Column("2017_share", Numeric(4, 2))
+    # c_2018_share = Column("2018_share", Numeric(4, 2))
+    # c_2019_share = Column("2019_share", Numeric(4, 2))
     c_2020_share = Column("2020_share", Numeric(4, 2))
     c_2021_share = Column("2021_share", Numeric(4, 2))
     c_2022_share = Column("2022_share", Numeric(4, 2))
