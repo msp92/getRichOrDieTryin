@@ -6,8 +6,6 @@ import difflib
 
 from helpers.utils import append_data_to_csv
 
-# sys.path.append(str(Path(__file__).resolve().parent.parent))
-
 
 class Referee:
     __table__ = None
@@ -60,13 +58,18 @@ class Referee:
             logging.info(
                 f"Auto-mapping '{referee_name}' to '{selected_silver_name}' (Similarity: {similarity:.2f})"
             )
-            append_data_to_csv(f"{referee_name};{selected_silver_name}", "../data/fixtures/mapping_referees.csv")
+            append_data_to_csv(
+                f"{referee_name};{selected_silver_name}",
+                "../data/fixtures/mapping_referees.csv",
+            )
             return True
         elif similar_names:
             # If incoming_name and original_name contains of initials, and they differ then exclude them
             incoming_initial = cls.find_initial_with_period(referee_name)
             similar_initial = cls.find_initial_with_period(similar_names[0][0])
-            if (similar_initial and not incoming_initial) or (not similar_initial and incoming_initial):
+            if (similar_initial and not incoming_initial) or (
+                not similar_initial and incoming_initial
+            ):
                 logging.info("MAM CIE")
             if (
                 similar_initial
@@ -76,13 +79,12 @@ class Referee:
                 logging.info("Found similar names, but initials differs.")
                 append_data_to_csv(referee_name, "../data/fixtures/new_referees.csv")
 
-
             # Present similar names to the user, with corresponding silver_names
             logging.info(f"Similar names found for '{referee_name}':")
             for idx, (name, similarity) in enumerate(similar_names, start=1):
-                silver_name = mapping_df[
-                    mapping_df["original_name"] == name
-                ].iloc[0]["silver_name"]
+                silver_name = mapping_df[mapping_df["original_name"] == name].iloc[0][
+                    "silver_name"
+                ]
                 print(
                     f"{idx}. '{name}' (similarity: {similarity:.2f}) -> silver_name: '{silver_name}'"
                 )
@@ -93,9 +95,7 @@ class Referee:
             ).strip()
 
             if choice.isdigit():
-                selected_idx = (
-                    int(choice) - 1
-                )  # Convert input to zero-based index
+                selected_idx = int(choice) - 1  # Convert input to zero-based index
                 if 0 <= selected_idx < len(similar_names):
                     selected_name, _ = similar_names[selected_idx]
                     # Find the silver_name corresponding to the selected name
@@ -103,6 +103,9 @@ class Referee:
                         mapping_df["original_name"] == selected_name
                     ].iloc[0]["silver_name"]
                     # Add the new mapping to the list
-                    append_data_to_csv(f"{referee_name};{selected_silver_name}", "../data/fixtures/mapping_referees.csv")
+                    append_data_to_csv(
+                        f"{referee_name};{selected_silver_name}",
+                        "../data/fixtures/mapping_referees.csv",
+                    )
                     return True
         return False

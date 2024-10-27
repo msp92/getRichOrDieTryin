@@ -401,5 +401,4 @@ class Fixture(Base):
                 raise InvalidRequestError(
                     f"Error while reading {cls.__name__} data: {e}"
                 )
-        return overcome_games_df.drop(columns=['update_date'])
-
+        return overcome_games_df.drop(columns=["update_date"])

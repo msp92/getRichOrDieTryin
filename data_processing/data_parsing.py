@@ -142,7 +142,9 @@ def parse_fixtures(subdir: str) -> pd.DataFrame:
     )
 
     df_fixtures["fixture.referee"] = df_fixtures["fixture.referee"].apply(
-        lambda referee_name: Referee.map_referee_name(referee_name) if referee_name else None
+        lambda referee_name: (
+            Referee.map_referee_name(referee_name) if referee_name else None
+        )
     )
 
     final_df = (
