@@ -30,7 +30,7 @@ class Referee:
         exact_match = mapping_df[mapping_df["original_name"] == referee_name]
 
         if not exact_match.empty:
-            return exact_match.iloc[0]["silver_name"]
+            return exact_match.iloc[0]["gold_name"]
 
         # Check for similar names if no exact match is found
         similar_names = mapping_df["original_name"].apply(
@@ -50,16 +50,16 @@ class Referee:
         similar_names = sorted(similar_names, key=lambda x: x[1], reverse=True)
 
         if high_similarity_names:
-            # Automatically take the silver_name of the highest similarity match
+            # Automatically take the gold_name of the highest similarity match
             selected_name, similarity = high_similarity_names[0]
-            selected_silver_name = mapping_df[
+            selected_gold_name = mapping_df[
                 mapping_df["original_name"] == selected_name
-            ].iloc[0]["silver_name"]
+            ].iloc[0]["gold_name"]
             logging.info(
-                f"Auto-mapping '{referee_name}' to '{selected_silver_name}' (Similarity: {similarity:.2f})"
+                f"Auto-mapping '{referee_name}' to '{selected_gold_name}' (Similarity: {similarity:.2f})"
             )
             append_data_to_csv(
-                f"{referee_name};{selected_silver_name}",
+                [referee_name, selected_gold_name],
                 "../data/fixtures/mapping_referees.csv",
             )
             return True
@@ -79,14 +79,14 @@ class Referee:
                 logging.info("Found similar names, but initials differs.")
                 append_data_to_csv(referee_name, "../data/fixtures/new_referees.csv")
 
-            # Present similar names to the user, with corresponding silver_names
+            # Present similar names to the user, with corresponding gold_names
             logging.info(f"Similar names found for '{referee_name}':")
             for idx, (name, similarity) in enumerate(similar_names, start=1):
-                silver_name = mapping_df[mapping_df["original_name"] == name].iloc[0][
-                    "silver_name"
+                gold_name = mapping_df[mapping_df["original_name"] == name].iloc[0][
+                    "gold_name"
                 ]
                 print(
-                    f"{idx}. '{name}' (similarity: {similarity:.2f}) -> silver_name: '{silver_name}'"
+                    f"{idx}. '{name}' (similarity: {similarity:.2f}) -> gold_name: '{gold_name}'"
                 )
 
             # Ask the user to select a match by pressing 1/2/3/etc.
@@ -98,13 +98,13 @@ class Referee:
                 selected_idx = int(choice) - 1  # Convert input to zero-based index
                 if 0 <= selected_idx < len(similar_names):
                     selected_name, _ = similar_names[selected_idx]
-                    # Find the silver_name corresponding to the selected name
-                    selected_silver_name = mapping_df[
+                    # Find the gold_name corresponding to the selected name
+                    selected_gold_name = mapping_df[
                         mapping_df["original_name"] == selected_name
-                    ].iloc[0]["silver_name"]
+                    ].iloc[0]["gold_name"]
                     # Add the new mapping to the list
                     append_data_to_csv(
-                        f"{referee_name};{selected_silver_name}",
+                        [referee_name, selected_gold_name],
                         "../data/fixtures/mapping_referees.csv",
                     )
                     return True

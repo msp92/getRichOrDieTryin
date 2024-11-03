@@ -1,7 +1,11 @@
 import csv
+import logging
 import os
 import shutil
 import json
+import unicodedata
+from typing import List, Union
+
 import pandas as pd
 from config.vars import SOURCE_DIR
 from data_processing.data_transformations import (
@@ -53,11 +57,13 @@ def write_df_to_csv(df, filename) -> None:
     df.to_csv(f"{SOURCE_DIR}/{filename}.csv", index=False)
 
 
-def append_data_to_csv(data, file_path) -> None:
+def append_data_to_csv(data: Union[str, List[str]], file_path: str) -> None:
     # Write data to CSV file
     with open(file_path, mode="a", newline="", encoding="utf-8") as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow([data])
+        writer = csv.writer(csvfile, delimiter=";")
+        # Convert string to a single-element list, so writer.writerow works consistently
+        rows = [data] if isinstance(data, str) else data
+        writer.writerow(rows)
 
 
 def move_json_files_between_directories(source_dir, target_dir) -> None:
@@ -75,3 +81,12 @@ def move_json_files_between_directories(source_dir, target_dir) -> None:
         source_file_path = os.path.join(f"../{source_dir}", file_name)
         dest_file_path = os.path.join(f"../{target_dir}", file_name)
         shutil.move(source_file_path, dest_file_path)
+
+
+def utf8_to_ascii(text):
+    # Normalize to decompose special characters
+    normalized = unicodedata.normalize("NFD", text)
+    # Encode to ASCII, ignoring characters that can't be converted
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+
+    return ascii_text
