@@ -1,0 +1,44 @@
+[tool.mypy]
+# Explicitly set the root of your project
+mypy_path = "getRichOrDieTryin"
+
+# Ignore imports that don't have type hints
+ignore_missing_imports = true
+
+# Enable strict mode for catching more type errors
+strict = true
+
+# Display error codes with messages
+show_error_codes = true
+
+# Disallow any implicit `Any` types in functions
+disallow_untyped_defs = true
+
+# Disallow `Any` expressions anywhere
+disallow_any_explicit = true
+
+# Warn about returning values with incorrect types
+warn_return_any = true
+
+# Warn when no return type is specified
+warn_no_return = true
+
+# Ignore untyped decorator functions
+ignore_errors = false
+
+# Specify files or directories to check
+files = [
+    "config/",
+    "data_processing/",
+    "helpers/",
+    "jobs/",
+    "models/",
+    "services/",
+    "tests/"
+]
+
+# Optional: cache for faster re-checks
+cache_dir = ".mypy_cache"
+
+# Optional: set Python version compatibility
+python_version = "3.10"
