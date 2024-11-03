@@ -36,7 +36,7 @@ class FixtureFetcher(APIFetcher):
         return self.fetch_data("fixtures", **kwargs)
 
     ##### UPDATES METHODS #####
-    def pull_finished_fixtures(self) -> None:
+    def pull_fixtures_by_dates(self, dates_to_pull: list[str] | None) -> None:
         """
         Pull updated fixtures data from an external API and write it to JSON files.
 
@@ -47,23 +47,14 @@ class FixtureFetcher(APIFetcher):
         Returns:
             None
         """
-        # dates_to_pull = Fixture.get_fixtures_dates_to_be_updated()
-        dates_to_pull = {
-            "2024-10-18",
-            "2024-10-19",
-            "2024-10-20",
-        }
-        finished_statuses = "FT-AET-PEN-WO-ABD-CANC-AWD-WO-PST"
-
         if not dates_to_pull:
             logging.info("No dates to update.")
 
         for single_date in dates_to_pull:
-            endpoint = f"fixtures?date={single_date}&status={finished_statuses}"
-            timestamp = dt.datetime.now().strftime("%Y%m%d%H%M%S")
+            endpoint = f"fixtures?date={single_date}"
             resp = self.fetch_data(endpoint)
             self.write_response_to_json(
-                resp, f"FINISHED_{single_date}_{timestamp}", "fixtures/updates"
+                resp, f"FIXTURES_{single_date}", "fixtures/updates"
             )
             sleep(SLEEP_TIME)
 
