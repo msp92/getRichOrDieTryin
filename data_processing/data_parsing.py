@@ -2,17 +2,19 @@ import logging
 import sys
 from pathlib import Path
 
+import datetime as dt
 import numpy as np
 import pandas as pd
 
 from data_processing.data_processing import load_all_files_from_directory
+from models.data.main.coaches import Coach
 from models.data.main.countries import Country
 from models.data.fixtures.fixtures import Fixture
 from models.data.main.leagues import League
 from models.data.main.referees import Referee
 from models.data.main.seasons import Season
 from models.data.main.teams import Team
-from helpers.utils import get_df_from_json
+from helpers.utils import get_df_from_json, utf8_to_ascii
 
 sys.path.append(str(Path(__file__).resolve().parent.parent))
 
@@ -143,7 +145,9 @@ def parse_fixtures(subdir: str) -> pd.DataFrame:
 
     df_fixtures["fixture.referee"] = df_fixtures["fixture.referee"].apply(
         lambda referee_name: (
-            Referee.map_referee_name(referee_name) if referee_name else None
+            Referee.map_referee_name(referee_name)
+            if referee_name
+            else None
         )
     )
 
@@ -172,6 +176,96 @@ def parse_fixtures(subdir: str) -> pd.DataFrame:
         .sort_values("date", ascending=True)
     )
     return final_df
+
+
+def parse_coaches() -> pd.DataFrame:
+    logging.info("** Parsing coaches data **")
+    raw_df = load_all_files_from_directory("coaches")
+    coaches_df = pd.DataFrame(
+        [
+            {
+                "coach_id": row["id"],
+                "coach_name": f"{row['firstname']} {row['lastname']}",
+                "age": row["age"],
+                "nationality": row["nationality"],
+                "team_id": entry["team"]["id"],
+                "team_name": entry["team"]["name"],
+                "start_date": entry["start"],
+                "end_date": entry["end"],
+            }
+            for _, row in raw_df.iterrows()
+            for entry in row["career"]
+        ],
+        columns=[column.name for column in Coach.__table__.columns],
+    )
+
+    # Get data from 2016 until today
+    coaches_df = coaches_df[
+        (coaches_df["end_date"] >= "2016-01-01") | (coaches_df["end_date"].isnull())
+    ]
+
+    coaches_df.drop_duplicates(inplace=True)
+
+    # Step 1: Check for coaches with more than one null in end_date
+    null_count = coaches_df["end_date"].isnull().groupby(coaches_df["team_id"]).sum()
+    multiple_nulls_coaches = null_count[null_count > 1].index
+
+    # Step 2: Process each coach with multiple nulls
+    results = []
+
+    for team_id in multiple_nulls_coaches:
+        coach_records = coaches_df[coaches_df["team_id"] == team_id]
+
+        # Get the latest start_date
+        latest_start_date = coach_records["start_date"].max()
+
+        # Step 3: Fill null end_date with the day before the latest start_date
+        for index, row in coach_records.iterrows():
+            if pd.isnull(row["end_date"]) and row["start_date"] < latest_start_date:
+                new_end_date = dt.datetime.strptime(
+                    latest_start_date, "%Y-%m-%d"
+                ) - pd.Timedelta(days=1)
+                results.append(row.to_dict())
+                results[-1]["end_date"] = new_end_date.date()
+            else:
+                results.append(row.to_dict())
+
+    # Step 4: Create DataFrame from results
+    result_df = pd.DataFrame(results)
+
+    # Step 5: Keep original records with only one null in end_date
+    single_nulls_df = coaches_df[~coaches_df["team_id"].isin(multiple_nulls_coaches)]
+
+    # Step 6: Combine the two DataFrames
+    final_df = pd.concat([result_df, single_nulls_df], ignore_index=True).sort_values(
+        by="coach_id"
+    )
+
+    final_df["coach_id"] = final_df["coach_id"].astype("Int64")
+    final_df["coach_name"] = final_df["coach_name"].apply(utf8_to_ascii)
+    final_df["age"] = final_df["age"].astype(pd.Int64Dtype())
+    final_df["team_id"] = final_df["team_id"].astype("Int64")
+
+    # Remove rows where coach_name = None
+    final_df = final_df[final_df["coach_name"] != "None None"]
+    # Remove rows where start_date = end_date
+    final_df = final_df[final_df["start_date"] != final_df["end_date"]]
+    # Remove rows where without team_id
+    final_df = final_df[final_df["team_id"] != 0]
+    # Remove worse entry for valid duplicates
+    final_df = final_df[
+        ~((final_df["coach_id"] == 492) & (final_df["end_date"] == "2023-02-01"))
+    ]
+    # Remove worse entry for valid duplicates
+    final_df = final_df[
+        ~((final_df["coach_id"] == 9964) & (final_df["end_date"] == "2007-05-01"))
+    ]
+    # Remove worse entry for valid duplicates
+    final_df = final_df[
+        ~((final_df["coach_id"] == 14206) & (final_df["end_date"] == "2022-08-01"))
+    ]
+
+    return final_df.sort_values("coach_id", ascending=True)
 
 
 def parse_events() -> pd.DataFrame:
