@@ -14,7 +14,7 @@ db = Db()
 
 class EventsFetcher(APIFetcher):
     def get_events(self, **kwargs) -> Response | None:
-        return self.fetch_data("leagues", **kwargs)
+        return self.fetch_data("fixtures/events", **kwargs)
 
     def pull_events_for_leagues_and_seasons(
         self, league_ids_to_pull: list, season_year_to_pull: str

@@ -15,6 +15,7 @@ class Team(Base):
     __table_args__ = {"schema": SCHEMA_NAME}
 
     country = relationship("Country", back_populates="team")
+    # coach = relationship("Coach", foreign_keys="Coach.team_id", back_populates="team")
     home_team = relationship(
         "Fixture", foreign_keys="Fixture.home_team_id", back_populates="home_team"
     )

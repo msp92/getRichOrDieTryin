@@ -19,7 +19,5 @@ class CoachesFetcher(APIFetcher):
             for team_id in reader:
                 endpoint = f"coachs?team={team_id[0]}"
                 resp = self.fetch_data(endpoint)
-                self.write_response_to_json(
-                    resp, f"coach_team_{team_id[0]}", "coaches"
-                )
+                self.write_response_to_json(resp, f"coach_team_{team_id[0]}", "coaches")
                 sleep(SLEEP_TIME)

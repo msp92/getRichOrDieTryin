@@ -134,7 +134,7 @@ class Fixture(Base):
         with db.get_session() as session:
             try:
                 today_fixtures_df = pd.read_sql_query(
-                    session.query(cls).filter(cls.date == date.today()).statement,
+                    session.query(cls).filter(cls.date == dt.date.today()).statement,
                     db.engine,
                 )
                 return today_fixtures_df
@@ -337,7 +337,7 @@ class Fixture(Base):
         home_team_stats = cls.get_season_stats_by_team(home_team_id, "2023")
         away_team_stats = cls.get_season_stats_by_team(away_team_id, "2023")
 
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        timestamp = dt.datetime.now().strftime("%Y%m%d%H%M%S")
         game_preview_df = pd.concat([home_team_stats, away_team_stats]).reset_index(
             drop=True
         )

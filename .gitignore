@@ -161,3 +161,7 @@ cython_debug/
 /data/
 /scripts/
 /config/
+/.streamlit/secrets.toml
+/zSOME_TESTS/discord_utils.py
+/tests/
+/zSOME_TESTS/
