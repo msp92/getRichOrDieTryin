@@ -1,5 +1,6 @@
 import logging
 import pandas as pd
+import datetime as dt
 
 from sqlalchemy import (
     Column,
@@ -12,7 +13,6 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import relationship
-from datetime import date, datetime
 from models.data.main.leagues import League  # NOQA: F401
 from config.vars import SOURCE_DIR
 from models.base import Base
@@ -59,47 +59,18 @@ class Fixture(Base):
         "Team", foreign_keys=[away_team_id], back_populates="away_team"
     )
 
-    @classmethod
-    def get_fixtures_dates_to_be_updated(cls) -> set:
-        """
-        Retrieve the set of fixture dates that need to be updated.
+    @staticmethod
+    def get_dates_to_update() -> list[str]:
+        curr_date = dt.date.today()
+        start_date = curr_date - dt.timedelta(days=3)
+        end_date = curr_date + dt.timedelta(days=5)
 
-        This method queries the database to find the dates for fixtures
-        that have not started yet for the specified season year (currently set
-        to "2023"). Then checks if share of not started games is >= 50%.
-
-        Returns:
-            set: A set of date strings in the format 'YYYY-MM-DD'
-
-        Raises:
-            Exception: If an error occurs during the database operation.
-        """
-        with db.get_session() as session:
-            try:
-                curr_date = datetime.now().date()
-                # Search min(date) for Not Started games
-                dates_to_update = (
-                    session.query(func.to_char(cls.date, "YYYY-MM-DD"))
-                    .filter(
-                        (cls.date <= curr_date)
-                        & (cls.status == "NS")
-                        & (cls.season_year == "2024")
-                    )
-                    .all()
-                )
-                dates_to_update_strings = [
-                    date_tuple[0] for date_tuple in dates_to_update
-                ]
-                unique_dates_to_update = list(set(dates_to_update_strings))
-                # Create a new list with items removed
-                filtered_dates_to_update = [
-                    single_date
-                    for single_date in unique_dates_to_update
-                    if cls.calculate_share_of_not_started_games(single_date) >= 50
-                ]
-                return set(filtered_dates_to_update)
-            except Exception:
-                raise Exception
+        # Generate list of dates as strings
+        date_range = [
+            (start_date + dt.timedelta(days=i)).strftime("%Y-%m-%d")
+            for i in range((end_date - start_date).days + 1)
+        ]
+        return date_range
 
     @classmethod
     def calculate_share_of_not_started_games(cls, date_to_check: str):
