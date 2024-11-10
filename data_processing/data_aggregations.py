@@ -2,10 +2,15 @@ import logging
 
 import pandas as pd
 
-from config.vars import SOURCE_DIR
+from config.vars import DATA_DIR
 from models.data.fixtures import Fixture
 from models.data.main import Team
 from services.db import Db
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 
 db = Db()
 
@@ -196,13 +201,13 @@ def calculate_no_draw_csv_for_all_teams() -> None:
     final_df = final_df.filter(items=["team_name", "no_draw"])
     final_df = final_df[final_df["no_draw"] > 0]
     final_df.to_csv(
-        f"{SOURCE_DIR}/team_stats_no_draw.csv",
+        f"{DATA_DIR}/team_stats_no_draw.csv",
         index=False,
     )
 
 
 # Update table with single result
-def update_table(table, home_team, away_team, home_goals, away_goals) -> pd.DataFrame:
+def update_table(table: pd.DataFrame, home_team: str, away_team: str, home_goals: int, away_goals: int) -> pd.DataFrame:
     for team, goals, opponent_goals in [
         (home_team, home_goals, away_goals),
         (away_team, away_goals, home_goals),
@@ -245,7 +250,7 @@ def update_table(table, home_team, away_team, home_goals, away_goals) -> pd.Data
 
 
 # Calculate table for input df
-def calculate_table(league_id, season_year, rounds="all_finished"):
+def calculate_table(league_id: int, season_year: int, rounds: str = "all_finished") -> pd.DataFrame:
     """
     Create full table or as of round to calculate custom power factor
     """

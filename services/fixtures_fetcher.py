@@ -2,7 +2,9 @@ import logging
 from dataclasses import dataclass
 import datetime as dt
 from time import sleep
-from typing import Optional
+from typing import Optional, Any
+
+from requests import Response
 
 from config.api_config import ApiConfig
 from config.vars import SLEEP_TIME
@@ -31,8 +33,8 @@ class FixtureFetcher(APIFetcher):
         league: Optional[str] = None,
         season: Optional[str] = None,
         status: Optional[str] = None,
-        **kwargs,
-    ):
+        **kwargs: dict[str, Any],
+    ) -> Response | None:
         return self.fetch_data("fixtures", **kwargs)
 
     ##### UPDATES METHODS #####
@@ -49,6 +51,7 @@ class FixtureFetcher(APIFetcher):
         """
         if not dates_to_pull:
             logging.info("No dates to update.")
+            return None
 
         for single_date in dates_to_pull:
             endpoint = f"fixtures?date={single_date}"

@@ -1,6 +1,8 @@
 import logging
+import typing
+
 import pandas as pd
-from typing_extensions import Optional
+from typing_extensions import Optional, Any
 
 import models.base as base_model
 
@@ -8,7 +10,7 @@ from contextlib import contextmanager
 from typing import Callable
 from sqlalchemy import create_engine
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import sessionmaker, scoped_session, Query
+from sqlalchemy.orm import sessionmaker, scoped_session, Query, Session
 
 from config.db_config import DbConfig
 
@@ -36,7 +38,7 @@ class Db:
         return self._construct_db_url(self.config)
 
     @contextmanager
-    def get_session(self):
+    def get_session(self) -> typing.Generator[Session, None, None]:
         session = self.Session
         try:
             yield session
@@ -60,7 +62,7 @@ class Db:
             logging.error(f"Unexpected error occurred: {e}")
             raise
 
-    def execute_orm_query(self, query: Callable[[sessionmaker], any]) -> None:
+    def execute_orm_query(self, query: Callable[[sessionmaker], Any]) -> None:
         """
         Executes an ORM query function that takes a session as an argument.
         """

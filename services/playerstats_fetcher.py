@@ -1,10 +1,11 @@
 import logging
 from time import sleep
+from typing import Any
 
 from requests import Response
 from sqlalchemy import and_
 
-from config.api_config import SLEEP_TIME
+from config.vars import SLEEP_TIME
 from models.data.fixtures import Fixture
 from services.api_fetcher import APIFetcher
 from services.db import Db
@@ -13,11 +14,11 @@ db = Db()
 
 
 class PlayerStatsFetcher(APIFetcher):
-    def get_player_stats(self, **kwargs) -> Response | None:
+    def get_player_stats(self, **kwargs: dict[str, Any]) -> Response | None:
         return self.fetch_data("leagues", **kwargs)
 
     def pull_player_statistics_for_leagues_and_seasons(
-        self, league_ids_to_pull: list, season_year_to_pull: str
+        self, league_ids_to_pull: list[int], season_year_to_pull: str
     ) -> None:
         with db.get_session() as session:
             try:

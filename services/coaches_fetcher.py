@@ -1,5 +1,6 @@
 import csv
 from time import sleep
+from typing import Any
 
 from requests import Response
 
@@ -8,11 +9,10 @@ from services.api_fetcher import APIFetcher
 
 
 class CoachesFetcher(APIFetcher):
-    def get_coaches(self, **kwargs) -> Response | None:
+    def get_coaches(self, **kwargs: dict[str, Any]) -> Response | None:
         return self.fetch_data("couchs", **kwargs)
 
-    @staticmethod
-    def pull_coaches_for_all_teams(self):
+    def pull_coaches_for_all_teams(self) -> None:
         # TODO: replace with teams from table
         with open("teams_to_pull_coaches.csv", mode="r", encoding="utf-8") as csvfile:
             reader = csv.reader(csvfile)

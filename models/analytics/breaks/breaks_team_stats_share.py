@@ -1,4 +1,7 @@
+from decimal import Decimal
+
 import pandas as pd
+import datetime as dt
 from sqlalchemy import Column, Integer, String, Date, Numeric, or_
 
 from models.base import Base
@@ -37,10 +40,6 @@ class BreaksTeamStatsShares(Base):
     beg_month_share = Column(Numeric(4, 2))
     mid_month_share = Column(Numeric(4, 2))
     end_month_share = Column(Numeric(4, 2))
-    # c_2012_share = Column("2012_share", Numeric(4, 2))
-    # c_2013_share = Column("2013_share", Numeric(4, 2))
-    # c_2014_share = Column("2014_share", Numeric(4, 2))
-    # c_2015_share = Column("2015_share", Numeric(4, 2))
     # c_2016_share = Column("2016_share", Numeric(4, 2))
     # c_2017_share = Column("2017_share", Numeric(4, 2))
     # c_2018_share = Column("2018_share", Numeric(4, 2))
@@ -57,7 +56,13 @@ class BreaksTeamStatsShares(Base):
 
     @classmethod
     def get_breaks_teams_points_for_fixture(
-        cls, fixture_id, home_team_id, away_team_id, date, round, referee
+        cls,
+        fixture_id: int,
+        home_team_id: int,
+        away_team_id: int,
+        date: dt.date,
+        round: int,
+        referee: str,
     ) -> pd.DataFrame:
         with db.get_session() as session:
             team_shares = pd.read_sql_query(
@@ -67,7 +72,7 @@ class BreaksTeamStatsShares(Base):
                 db.engine,
             )
 
-        def calculate_home_away_factor(team_id) -> int:
+        def calculate_home_away_factor(team_id: int) -> Decimal:
             team_home_share = team_shares[team_shares["team_id"] == team_id][
                 "home_share"
             ]
@@ -80,11 +85,11 @@ class BreaksTeamStatsShares(Base):
             fctr = factor.reset_index(drop=True)
 
             if len(fctr) < 1:
-                return 0
+                return 0.0
 
             return fctr[0]
 
-        def get_month_part_factor(team_id, date) -> int:
+        def get_month_part_factor(team_id: int, date: dt.date) -> int:
             day = date.day
             month_part = None
 
@@ -109,7 +114,7 @@ class BreaksTeamStatsShares(Base):
 
             return fctr[0]
 
-        def get_month_factor(team_id, date) -> int:
+        def get_month_factor(team_id: int, date: dt.date) -> int:
             month = date.month
             months = {
                 1: "jan",
@@ -136,15 +141,10 @@ class BreaksTeamStatsShares(Base):
 
             return fctr[0]
 
-        def get_year_factor():
+        def get_year_factor() -> int:
             return 0
 
         def get_round_factor(team_id: int, round: int) -> int:
-            if not round or len(round) > 2:
-                return 0
-
-            round = int(round)
-
             match round:
                 case x if x < 14:
                     season_part = "rounds_1-13"
@@ -168,10 +168,10 @@ class BreaksTeamStatsShares(Base):
 
             return fctr[0]
 
-        def get_referee_factor(team_id, referee) -> int:
+        def get_referee_factor(team_id: int, referee: str) -> int:
             return 0
 
-        def get_total_factor(team_id) -> int:
+        def get_total_factor(team_id: int) -> Decimal:
             total_factor = (
                 calculate_home_away_factor(team_id)
                 + get_month_part_factor(team_id, date)

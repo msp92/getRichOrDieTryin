@@ -3,6 +3,7 @@ import logging
 from pandas import DataFrame
 from sqlalchemy.ext.declarative import declarative_base
 import pandas as pd
+from sqlalchemy.orm import Mapper
 
 from services.db import Db
 
@@ -10,7 +11,7 @@ db = Db()
 
 
 class BaseMixin:
-    __mapper__ = str | None
+    __mapper__: Mapper = None
     metadata = None
     __table__ = None
 
@@ -129,6 +130,8 @@ class BaseMixin:
     def _is_same_record(cls, input_record: dict, existing_record: pd.Series) -> bool:
         """Helper function to check if the input record is the same as the existing record."""
         # Compare each field, except the primary key
+        existing_record = existing_record
+        # FIXME: update doesn't work for Coaches (only insert)
         for key, value in input_record.items():
             if (
                 key != cls.__mapper__.primary_key[0].name

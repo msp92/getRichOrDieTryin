@@ -1,17 +1,20 @@
 import logging
 import os
 import pandas as pd
-from datetime import datetime
-from config.vars import SOURCE_DIR
+from config.vars import DATA_DIR, ROOT_DIR
 from helpers.utils import get_df_from_json
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
 
 
-def load_all_files_from_directory(directory_path: str) -> pd.DataFrame:
+def load_all_files_from_data_directory(sub_dir: str) -> pd.DataFrame:
     """
     Load all JSON files from a directory and combine them into a single DataFrame.
 
     Args:
-        directory_path (str): The path to the directory containing JSON files.
+        sub_dir (str): The path to the directory containing JSON files.
 
     Returns:
         pd.DataFrame: A DataFrame containing the combined data from all JSON files in the directory.
@@ -19,36 +22,26 @@ def load_all_files_from_directory(directory_path: str) -> pd.DataFrame:
     Raises:
         FileNotFoundError: If the specified directory does not exist.
     """
-    logging.info(f"Collecting {directory_path} data...")
+    logging.info(f"Collecting {DATA_DIR}/{sub_dir} data...")
     all_dfs = []
     try:
-        for root, _, files in os.walk(f"../{SOURCE_DIR}/{directory_path}"):
-            if root != f"../{SOURCE_DIR}/{directory_path}":
+        for root, _, files in os.walk(f"{ROOT_DIR}/{DATA_DIR}/{sub_dir}"):
+            if root != f"{ROOT_DIR}/{DATA_DIR}/{sub_dir}":
                 continue  # Skip walking into the root directory
             if not files:
-                raise Exception(f"No files in {SOURCE_DIR}/{directory_path}")
+                raise Exception(f"No files in {DATA_DIR}/{sub_dir}")
             for file_name in files:
                 if file_name.endswith(".json"):
                     file_path = os.path.join(root, file_name)
                     try:
-                        json_data = get_df_from_json(
-                            file_name[:-5], sub_dir=directory_path
-                        )
-
-                        # FIXME: likely to change
-                        # Assign timestamp from filename for each single fixture
-                        if directory_path == "fixtures/updates":
-                            timestamp_str = file_name.split("_")[2].split(".")[0]
-                            json_data["update_date"] = datetime.strptime(
-                                timestamp_str, "%Y%m%d%H%M%S"
-                            )
+                        json_data = get_df_from_json(file_name[:-5], sub_dir=sub_dir)
 
                         if not json_data.empty:
                             all_dfs.append(json_data)
                         else:
                             logging.warning(f"JSON data is empty for file: {file_path}")
                     except FileNotFoundError as e:
-                        print(f"Error loading JSON file: {str(e)}")
+                        logging.error(f"Error loading JSON file: {str(e)}")
     except FileNotFoundError as e:
         logging.error(f"Error loading JSON file: {str(e)}")
 

@@ -1,4 +1,5 @@
 import logging
+
 import pandas as pd
 import datetime as dt
 
@@ -14,9 +15,14 @@ from sqlalchemy import (
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import relationship
 from models.data.main.leagues import League  # NOQA: F401
-from config.vars import SOURCE_DIR
+from config.vars import DATA_DIR
 from models.base import Base
 from services.db import Db
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 
 db = Db()
 
@@ -62,8 +68,8 @@ class Fixture(Base):
     @staticmethod
     def get_dates_to_update() -> list[str]:
         curr_date = dt.date.today()
-        start_date = curr_date - dt.timedelta(days=3)
-        end_date = curr_date + dt.timedelta(days=5)
+        start_date = curr_date - dt.timedelta(days=2)
+        end_date = curr_date + dt.timedelta(days=2)
 
         # Generate list of dates as strings
         date_range = [
@@ -73,15 +79,15 @@ class Fixture(Base):
         return date_range
 
     @classmethod
-    def calculate_share_of_not_started_games(cls, date_to_check: str):
+    def calculate_share_of_not_started_games(cls, date_to_check: str) -> int:
         with db.get_session() as session:
             try:
-                all_fixture_count = (
+                all_fixture_count: int = (
                     session.query(func.count(cls.fixture_id))
                     .filter(func.DATE(cls.date) == date_to_check)
                     .scalar()
                 )
-                not_started_fixture_count = (
+                not_started_fixture_count: int = (
                     session.query(func.count(cls.fixture_id))
                     .filter(
                         (func.DATE(cls.date) == date_to_check) & (cls.status == "NS")
@@ -143,7 +149,7 @@ class Fixture(Base):
 
     @classmethod
     def get_season_fixtures_by_team(
-        cls, team_id: int, season_year: str, status="ALL"
+        cls, team_id: int, season_year: str, status: str = "ALL"
     ) -> pd.DataFrame:
         """
         Retrieve fixtures of a specific team for a given season and status.
@@ -190,7 +196,7 @@ class Fixture(Base):
                 raise Exception
 
     @staticmethod
-    def filter_fixtures_by_rounds(df: pd.DataFrame, rounds):
+    def filter_fixtures_by_rounds(df: pd.DataFrame, rounds: str | int) -> pd.DataFrame:
         match rounds:
             case "all_finished":
                 return df[df["status"] == "FT"]
@@ -342,7 +348,7 @@ class Fixture(Base):
             drop=True
         )
         game_preview_df.to_csv(
-            f"{SOURCE_DIR}/previews/{timestamp}_{home_team_id}-{away_team_id}.csv",
+            f"{DATA_DIR}/previews/{timestamp}_{home_team_id}-{away_team_id}.csv",
             index=False,
         )
         return game_preview_df
