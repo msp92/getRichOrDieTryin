@@ -143,6 +143,12 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
+# ruff
+ruff.xml
+
+# black
+misc.xml
+
 # Pyre type checker
 .pyre/
 
@@ -162,6 +168,6 @@ cython_debug/
 /scripts/
 /config/
 /.streamlit/secrets.toml
-/zSOME_TESTS/discord_utils.py
+/TESTZ/discord_utils.py
 /tests/
-/zSOME_TESTS/
+/TESTZ/
