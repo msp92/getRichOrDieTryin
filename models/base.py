@@ -1,10 +1,12 @@
 import logging
 
 from pandas import DataFrame
+from sqlalchemy import or_, and_
 from sqlalchemy.ext.declarative import declarative_base
 import pandas as pd
 from sqlalchemy.orm import Mapper
 
+from helpers.utils import safe_int_cast
 from services.db import Db
 
 db = Db()
@@ -53,34 +55,48 @@ class BaseMixin:
 
     @classmethod
     def get_existing_records(cls, df: DataFrame) -> DataFrame:
-        primary_key = cls.__mapper__.primary_key[0].name
+        primary_keys = [key.name for key in cls.__mapper__.primary_key]
 
         # Get IDs of input DataFrame
-        ids = df[primary_key].tolist()
-        if ids:
+        key_values = df[primary_keys].to_dict(orient="records")
+
+        if key_values:
             with db.get_session() as session:
-                # For input DataFrame get existing records from Db
+                # Build filter conditions for each key set
+                conditions = [
+                    and_(
+                        *[getattr(cls, key) == value for key, value in key_set.items()]
+                    )
+                    for key_set in key_values
+                ]
+                # Query the database for matching records
                 existing_records = pd.read_sql_query(
-                    session.query(cls)
-                    .filter(cls.__mapper__.primary_key[0].in_(ids))
-                    .statement,
+                    session.query(cls).filter(or_(*conditions)).statement,
                     db.engine,
                 )
                 return existing_records
 
     @classmethod
-    def bulk_insert(cls, records: list[dict], existing_records: DataFrame) -> None:
-        primary_key = cls.__mapper__.primary_key[0].name
+    def bulk_insert(cls, records: list[dict], existing_records: pd.DataFrame) -> None:
+        primary_keys = [key.name for key in cls.__mapper__.primary_key]
 
-        with db.get_session() as session:
-            try:
-                # Prepare new records for insertion
-                new_records = [
-                    record
-                    for record in records
-                    if record[primary_key] not in existing_records[primary_key].values
-                ]
-                if new_records:
+        # Convert primary key values in `existing_key_tuples` with safe casting
+        existing_key_tuples = {
+            tuple(safe_int_cast(existing_records[key].iloc[i]) for key in primary_keys)
+            for i in range(len(existing_records))
+        }
+
+        # Convert primary key values in `new_records` with safe casting
+        new_records = [
+            record
+            for record in records
+            if tuple(safe_int_cast(record[key]) for key in primary_keys)
+            not in existing_key_tuples
+        ]
+
+        if new_records:
+            with db.get_session() as session:
+                try:
                     logging.info(f"Inserting new {cls.__name__} records")
                     session.bulk_insert_mappings(
                         cls, new_records
@@ -89,30 +105,32 @@ class BaseMixin:
                     logging.info(
                         f"{len(new_records)} {cls.__name__} records inserted successfully"
                     )
-            except Exception as e:
-                # Rollback the session in case of an error to discard the changes
-                session.rollback()
-                logging.error(f"Error while inserting {cls.__name__} data: {e}")
+                except Exception as e:
+                    # Rollback the session in case of an error to discard the changes
+                    session.rollback()
+                    logging.error(f"Error while inserting {cls.__name__} data: {e}")
 
     @classmethod
-    def bulk_update(cls, records: list[dict], existing_records: DataFrame) -> None:
-        primary_key = cls.__mapper__.primary_key[0].name
+    def bulk_update(cls, records: list[dict], existing_records: pd.DataFrame) -> None:
+        primary_keys = [key.name for key in cls.__mapper__.primary_key]
 
-        with db.get_session() as session:
-            try:
-                # Prepare records for updating
-                records_to_update = [
-                    record
-                    for record in records
-                    if record[primary_key] in existing_records[primary_key].values
-                    and not cls._is_same_record(
-                        record,
-                        existing_records.loc[
-                            existing_records[primary_key] == record[primary_key]
-                        ].squeeze(),
-                    )
-                ]
-                if records_to_update:
+        # Convert primary key values in `existing_key_tuples` with safe casting
+        existing_key_tuples = {
+            tuple(safe_int_cast(existing_records[key].iloc[i]) for key in primary_keys)
+            for i in range(len(existing_records))
+        }
+
+        # Convert primary key values in `new_records` with safe casting
+        records_to_update = [
+            record
+            for record in records
+            if tuple(safe_int_cast(record[key]) for key in primary_keys)
+            in existing_key_tuples
+        ]
+        # TODO: think fo upgrade to check all fields if possible to avoid updating all records
+        if records_to_update:
+            with db.get_session() as session:
+                try:
                     logging.info(f"Updating {cls.__name__} records")
                     session.bulk_update_mappings(
                         cls, records_to_update
@@ -121,22 +139,24 @@ class BaseMixin:
                     logging.info(
                         f"{len(records_to_update)} {cls.__name__} records updated successfully"
                     )
-            except Exception as e:
-                # Rollback the session in case of an error to discard the changes
-                session.rollback()
-                logging.error(f"Error while updating {cls.__name__} data: {e}")
+                except Exception as e:
+                    # Rollback the session in case of an error to discard the changes
+                    session.rollback()
+                    logging.error(f"Error while updating {cls.__name__} data: {e}")
 
     @classmethod
     def _is_same_record(cls, input_record: dict, existing_record: pd.Series) -> bool:
         """Helper function to check if the input record is the same as the existing record."""
         # Compare each field, except the primary key
         existing_record = existing_record
+        primary_keys = [key.name for key in cls.__mapper__.primary_key]
         # FIXME: update doesn't work for Coaches (only insert)
         for key, value in input_record.items():
             if (
-                key != cls.__mapper__.primary_key[0].name
-                and value != existing_record[key]
+                key != primary_key and value != existing_record[key]
+                for primary_key in primary_keys
             ):
+                logging.info(f"Key {key}, value {value}")
                 return False
         return True
 
