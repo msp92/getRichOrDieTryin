@@ -207,7 +207,13 @@ def calculate_no_draw_csv_for_all_teams() -> None:
 
 
 # Update table with single result
-def update_table(table: pd.DataFrame, home_team: str, away_team: str, home_goals: int, away_goals: int) -> pd.DataFrame:
+def update_table(
+    table: pd.DataFrame,
+    home_team: str,
+    away_team: str,
+    home_goals: int,
+    away_goals: int,
+) -> pd.DataFrame:
     for team, goals, opponent_goals in [
         (home_team, home_goals, away_goals),
         (away_team, away_goals, home_goals),
@@ -250,7 +256,9 @@ def update_table(table: pd.DataFrame, home_team: str, away_team: str, home_goals
 
 
 # Calculate table for input df
-def calculate_table(league_id: int, season_year: int, rounds: str = "all_finished") -> pd.DataFrame:
+def calculate_table(
+    league_id: int, season_year: int, rounds: str = "all_finished"
+) -> pd.DataFrame:
     """
     Create full table or as of round to calculate custom power factor
     """
