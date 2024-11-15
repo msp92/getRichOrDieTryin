@@ -1,4 +1,5 @@
 import logging
+import typing
 
 import pandas as pd
 from sqlalchemy import Column, Integer, String, ForeignKey
@@ -15,6 +16,7 @@ class Team(Base):
     __table_args__ = {"schema": SCHEMA_NAME}
 
     country = relationship("Country", back_populates="team")
+    # coach = relationship("Coach", foreign_keys="Coach.team_id", back_populates="team")
     home_team = relationship(
         "Fixture", foreign_keys="Fixture.home_team_id", back_populates="home_team"
     )
@@ -85,39 +87,7 @@ class Team(Base):
             unique_teams_filtered_df.duplicated(subset="team_id", keep=False)
         ]
 
-        def choose_duplicates(group) -> None:
-            # Check if 'country_id' values are the same (case: different team_name for the same team)
-            if group["team_name"].nunique() == 2:
-                # Remove row with shorter 'team_name'
-                shortest_name_index = group["team_name"].str.len().idxmax()
-                return group.drop(index=shortest_name_index)
-
-            # If 'country_id' values are different (case: different country for the same team)
-            else:
-                # Check if one row has country_id=166 (case: World & other country)
-                if "World" in group["country_name"].values:
-                    # Remove row with 'country_id'=166
-                    index_to_remove = group[group["country_name"] == "World"].index
-                    return group.drop(index=index_to_remove)
-                else:
-                    # Remove row with smaller country_id (case: two different countries - Aruba(8) & Netherlands(90))
-                    min_country_id_index = group["country_name"].idxmin()
-                    return group.drop(index=min_country_id_index)
-
-        # Apply the custom function to handle duplicates
-        deduplicated_teams_df = teams_to_fix_df.groupby("team_id").apply(
-            choose_duplicates
-        )
-
-        # Merge both subsets
-        concatenated_df = pd.concat([missing_teams_to_insert_df, deduplicated_teams_df])
-        # Add country_id from League table
-        final_df = pd.merge(
-            concatenated_df, Country.get_df_from_table(), on="country_name", how="left"
-        ).filter(items=["team_id", "country_id", "country_name", "team_name", "logo"])
-        Team.upsert(final_df)
-
-        def choose_duplicates(group):
+        def choose_duplicates(group: pd.DataFrame) -> typing.Any:
             # Check if 'country_id' values are the same (case: different team_name for the same team)
             if group["team_name"].nunique() == 2:
                 # Remove row with shorter 'team_name'

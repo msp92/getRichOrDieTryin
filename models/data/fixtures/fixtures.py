@@ -1,5 +1,7 @@
 import logging
+
 import pandas as pd
+import datetime as dt
 
 from sqlalchemy import (
     Column,
@@ -12,11 +14,15 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import relationship
-from datetime import date, datetime
 from models.data.main.leagues import League  # NOQA: F401
-from config.vars import SOURCE_DIR
+from config.vars import DATA_DIR
 from models.base import Base
 from services.db import Db
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
+
 
 db = Db()
 
@@ -59,58 +65,29 @@ class Fixture(Base):
         "Team", foreign_keys=[away_team_id], back_populates="away_team"
     )
 
-    @classmethod
-    def get_fixtures_dates_to_be_updated(cls) -> set:
-        """
-        Retrieve the set of fixture dates that need to be updated.
+    @staticmethod
+    def get_dates_to_update() -> list[str]:
+        curr_date = dt.date.today()
+        start_date = curr_date - dt.timedelta(days=2)
+        end_date = curr_date + dt.timedelta(days=2)
 
-        This method queries the database to find the dates for fixtures
-        that have not started yet for the specified season year (currently set
-        to "2023"). Then checks if share of not started games is >= 50%.
-
-        Returns:
-            set: A set of date strings in the format 'YYYY-MM-DD'
-
-        Raises:
-            Exception: If an error occurs during the database operation.
-        """
-        with db.get_session() as session:
-            try:
-                curr_date = datetime.now().date()
-                # Search min(date) for Not Started games
-                dates_to_update = (
-                    session.query(func.to_char(cls.date, "YYYY-MM-DD"))
-                    .filter(
-                        (cls.date <= curr_date)
-                        & (cls.status == "NS")
-                        & (cls.season_year == "2024")
-                    )
-                    .all()
-                )
-                dates_to_update_strings = [
-                    date_tuple[0] for date_tuple in dates_to_update
-                ]
-                unique_dates_to_update = list(set(dates_to_update_strings))
-                # Create a new list with items removed
-                filtered_dates_to_update = [
-                    single_date
-                    for single_date in unique_dates_to_update
-                    if cls.calculate_share_of_not_started_games(single_date) >= 50
-                ]
-                return set(filtered_dates_to_update)
-            except Exception:
-                raise Exception
+        # Generate list of dates as strings
+        date_range = [
+            (start_date + dt.timedelta(days=i)).strftime("%Y-%m-%d")
+            for i in range((end_date - start_date).days + 1)
+        ]
+        return date_range
 
     @classmethod
-    def calculate_share_of_not_started_games(cls, date_to_check: str):
+    def calculate_share_of_not_started_games(cls, date_to_check: str) -> int:
         with db.get_session() as session:
             try:
-                all_fixture_count = (
+                all_fixture_count: int = (
                     session.query(func.count(cls.fixture_id))
                     .filter(func.DATE(cls.date) == date_to_check)
                     .scalar()
                 )
-                not_started_fixture_count = (
+                not_started_fixture_count: int = (
                     session.query(func.count(cls.fixture_id))
                     .filter(
                         (func.DATE(cls.date) == date_to_check) & (cls.status == "NS")
@@ -163,7 +140,7 @@ class Fixture(Base):
         with db.get_session() as session:
             try:
                 today_fixtures_df = pd.read_sql_query(
-                    session.query(cls).filter(cls.date == date.today()).statement,
+                    session.query(cls).filter(cls.date == dt.date.today()).statement,
                     db.engine,
                 )
                 return today_fixtures_df
@@ -172,7 +149,7 @@ class Fixture(Base):
 
     @classmethod
     def get_season_fixtures_by_team(
-        cls, team_id: int, season_year: str, status="ALL"
+        cls, team_id: int, season_year: str, status: str = "ALL"
     ) -> pd.DataFrame:
         """
         Retrieve fixtures of a specific team for a given season and status.
@@ -219,7 +196,7 @@ class Fixture(Base):
                 raise Exception
 
     @staticmethod
-    def filter_fixtures_by_rounds(df: pd.DataFrame, rounds):
+    def filter_fixtures_by_rounds(df: pd.DataFrame, rounds: str | int) -> pd.DataFrame:
         match rounds:
             case "all_finished":
                 return df[df["status"] == "FT"]
@@ -366,12 +343,12 @@ class Fixture(Base):
         home_team_stats = cls.get_season_stats_by_team(home_team_id, "2023")
         away_team_stats = cls.get_season_stats_by_team(away_team_id, "2023")
 
-        timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+        timestamp = dt.datetime.now().strftime("%Y%m%d%H%M%S")
         game_preview_df = pd.concat([home_team_stats, away_team_stats]).reset_index(
             drop=True
         )
         game_preview_df.to_csv(
-            f"{SOURCE_DIR}/previews/{timestamp}_{home_team_id}-{away_team_id}.csv",
+            f"{DATA_DIR}/previews/{timestamp}_{home_team_id}-{away_team_id}.csv",
             index=False,
         )
         return game_preview_df

@@ -4,6 +4,7 @@ import re
 import pandas as pd
 import difflib
 
+from config.vars import ROOT_DIR, DATA_DIR
 from helpers.utils import append_data_to_csv
 
 
@@ -23,14 +24,14 @@ class Referee:
         return None
 
     @classmethod
-    def map_referee_name(cls, referee_name: str):
-        mapping_df = pd.read_csv("../data/fixtures/mapping_referees.csv", delimiter=";")
+    def map_referee_name(cls, referee_name: str) -> str | None:
+        mapping_df = pd.read_csv(f"{ROOT_DIR}/{DATA_DIR}/fixtures/mapping_referees.csv")
 
         # Check for exact matches in mapping
         exact_match = mapping_df[mapping_df["original_name"] == referee_name]
 
         if not exact_match.empty:
-            return exact_match.iloc[0]["silver_name"]
+            return exact_match.iloc[0]["gold_name"]
 
         # Check for similar names if no exact match is found
         similar_names = mapping_df["original_name"].apply(
@@ -50,19 +51,18 @@ class Referee:
         similar_names = sorted(similar_names, key=lambda x: x[1], reverse=True)
 
         if high_similarity_names:
-            # Automatically take the silver_name of the highest similarity match
+            # Automatically take the gold_name of the highest similarity match
             selected_name, similarity = high_similarity_names[0]
-            selected_silver_name = mapping_df[
+            selected_gold_name = mapping_df[
                 mapping_df["original_name"] == selected_name
-            ].iloc[0]["silver_name"]
+            ].iloc[0]["gold_name"]
             logging.info(
-                f"Auto-mapping '{referee_name}' to '{selected_silver_name}' (Similarity: {similarity:.2f})"
+                f"Auto-mapping '{referee_name}' to '{selected_gold_name}' (Similarity: {similarity:.2f})"
             )
             append_data_to_csv(
-                f"{referee_name};{selected_silver_name}",
-                "../data/fixtures/mapping_referees.csv",
+                [referee_name, selected_gold_name],
+                f"{ROOT_DIR}/{DATA_DIR}/fixtures/mapping_referees.csv",
             )
-            return True
         elif similar_names:
             # If incoming_name and original_name contains of initials, and they differ then exclude them
             incoming_initial = cls.find_initial_with_period(referee_name)
@@ -70,42 +70,49 @@ class Referee:
             if (similar_initial and not incoming_initial) or (
                 not similar_initial and incoming_initial
             ):
-                logging.info("MAM CIE")
+                logging.info("MAM CIE")  # FIXME
             if (
                 similar_initial
                 and incoming_initial
                 and not similar_initial == incoming_initial
             ):
                 logging.info("Found similar names, but initials differs.")
-                append_data_to_csv(referee_name, "../data/fixtures/new_referees.csv")
-
-            # Present similar names to the user, with corresponding silver_names
-            logging.info(f"Similar names found for '{referee_name}':")
-            for idx, (name, similarity) in enumerate(similar_names, start=1):
-                silver_name = mapping_df[mapping_df["original_name"] == name].iloc[0][
-                    "silver_name"
-                ]
-                print(
-                    f"{idx}. '{name}' (similarity: {similarity:.2f}) -> silver_name: '{silver_name}'"
+                append_data_to_csv(
+                    referee_name, f"{ROOT_DIR}/{DATA_DIR}/fixtures/new_referees.csv"
                 )
 
-            # Ask the user to select a match by pressing 1/2/3/etc.
-            choice = input(
-                f"Select mapping for '{referee_name}' (or press Enter to skip): "
-            ).strip()
+            # Present similar names to the user, with corresponding gold_names
+            logging.info(f"Similar names found for '{referee_name}':")
+            for idx, (name, similarity) in enumerate(similar_names, start=1):
+                gold_name = mapping_df[mapping_df["original_name"] == name].iloc[0][
+                    "gold_name"
+                ]
+                print(
+                    f"{idx}. '{name}' (similarity: {similarity:.2f}) -> gold_name: '{gold_name}'"
+                )
 
-            if choice.isdigit():
-                selected_idx = int(choice) - 1  # Convert input to zero-based index
-                if 0 <= selected_idx < len(similar_names):
-                    selected_name, _ = similar_names[selected_idx]
-                    # Find the silver_name corresponding to the selected name
-                    selected_silver_name = mapping_df[
-                        mapping_df["original_name"] == selected_name
-                    ].iloc[0]["silver_name"]
-                    # Add the new mapping to the list
-                    append_data_to_csv(
-                        f"{referee_name};{selected_silver_name}",
-                        "../data/fixtures/mapping_referees.csv",
-                    )
-                    return True
-        return False
+            ##### Commented out for scheduling.
+            ##### All potentially matched names will be in new_referees.
+            ##### Maybe this file should be handled separately
+            # Ask the user to select a match by pressing 1/2/3/etc.
+            # choice = input(
+            #     f"Select mapping for '{referee_name}' (or press Enter to skip): "
+            # ).strip()
+            #
+            # if choice.isdigit():
+            #     selected_idx = int(choice) - 1  # Convert input to zero-based index
+            #     if 0 <= selected_idx < len(similar_names):
+            #         selected_name, _ = similar_names[selected_idx]
+            #         # Find the gold_name corresponding to the selected name
+            #         selected_gold_name = mapping_df[
+            #             mapping_df["original_name"] == selected_name
+            #         ].iloc[0]["gold_name"]
+            #         # Add the new mapping to the list
+            #         append_data_to_csv(
+            #             [referee_name, selected_gold_name],
+            #             f"{ROOT_DIR}/{DATA_DIR}/fixtures/mapping_referees.csv",
+            #         )
+            # Add the new mapping to the list
+            append_data_to_csv(
+                referee_name, f"{ROOT_DIR}/{DATA_DIR}/fixtures/new_referees.csv"
+            )

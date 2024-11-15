@@ -1,9 +1,10 @@
-from services.api_fetcher import APIFetcher
-from services.db import Db
+from typing import Any
 
-db = Db()
+from requests import Response
+
+from services.api_fetcher import APIFetcher
 
 
 class StatsFetcher(APIFetcher):
-    def get_stats(self, **kwargs):
+    def get_stats(self, **kwargs: dict[str, Any]) -> Response | None:
         return self.fetch_data("fixtures/statistics", **kwargs)

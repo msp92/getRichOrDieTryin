@@ -1,17 +1,23 @@
 import json
 import logging
+from typing import Any
+
 import requests
 from requests import Response
 
 from config.api_config import ApiConfig
-from config.vars import SOURCE_DIR
+from config.vars import DATA_DIR, ROOT_DIR
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 
 class APIFetcher:
     def __init__(self, config: ApiConfig) -> None:
         self.config = config
 
-    def fetch_data(self, endpoint: str, **kwargs) -> Response | None:
+    def fetch_data(self, endpoint: str, **kwargs: dict[str, Any]) -> Response | None:
         # Check subscription status before making the request
         if not self.config.has_quota():
             raise Exception("Quota exceeded. Cannot make any more requests.")
@@ -24,12 +30,6 @@ class APIFetcher:
             if len(response.json()["response"]) == 0:
                 logging.info("Response empty. No data have been pulled.")
                 return None
-            if response.json()["paging"]["total"] > 1:
-                # FIXME: handle more than 1 page
-                logging.warning(
-                    "[FIXME] There are more than 1 page. Please handle this asap."
-                )
-                return None
             return response
         else:
             logging.error(
@@ -39,11 +39,10 @@ class APIFetcher:
 
     @staticmethod
     def write_response_to_json(
-        response: Response | None, filename: str, subdir=""
+        response: Response | None, filename: str, subdir: str = ""
     ) -> None:
         if response:
-            # file_path = os.path.join(SOURCE_DIR, subdir, f"{filename}.json")
-            file_path = f"../{SOURCE_DIR}/{subdir}/{filename}.json"
+            file_path = f"{ROOT_DIR}/{DATA_DIR}/{subdir}/{filename}.json"
             try:
                 with open(file_path, "w") as file:
                     json.dump(response.json(), file)

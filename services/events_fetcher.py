@@ -1,5 +1,6 @@
 import logging
 from time import sleep
+from typing import Any
 
 from requests import Response
 from sqlalchemy import and_
@@ -13,11 +14,11 @@ db = Db()
 
 
 class EventsFetcher(APIFetcher):
-    def get_events(self, **kwargs) -> Response | None:
-        return self.fetch_data("leagues", **kwargs)
+    def get_events(self, **kwargs: dict[str, Any]) -> Response | None:
+        return self.fetch_data("fixtures/events", **kwargs)
 
     def pull_events_for_leagues_and_seasons(
-        self, league_ids_to_pull: list, season_year_to_pull: str
+        self, league_ids_to_pull: list[int], season_year_to_pull: str
     ) -> None:
         finished_statuses = ["FT", "AET", "PEN", "WO"]
         with db.get_session() as session:

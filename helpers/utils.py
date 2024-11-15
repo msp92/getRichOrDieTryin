@@ -2,16 +2,19 @@ import csv
 import os
 import shutil
 import json
+import unicodedata
+from typing import List, Union
+
 import pandas as pd
-from config.vars import SOURCE_DIR
-from data_processing.data_transformations import (
-    transform_statistics_fixtures,
-    transform_player_statistics,
-    transform_events,
-)
+from config.vars import DATA_DIR, ROOT_DIR
+
+import sys
+from pathlib import Path
+
+sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 
-def get_df_from_json(filename: str, sub_dir="") -> pd.DataFrame:
+def get_df_from_json(filename: str, sub_dir: str = "") -> pd.DataFrame:
     """
     Read JSON data from a file and convert it to a pandas DataFrame.
 
@@ -27,17 +30,17 @@ def get_df_from_json(filename: str, sub_dir="") -> pd.DataFrame:
         JSONDecodeError: If the JSON data cannot be decoded.
     """
     try:
-        with open(f"../{SOURCE_DIR}/{sub_dir}/{filename}.json", "r") as file:
+        with open(f"{ROOT_DIR}/{DATA_DIR}/{sub_dir}/{filename}.json", "r") as file:
             json_data = json.load(file)
             df = pd.json_normalize(json_data["response"])
 
-            if sub_dir == "statistics_fixtures":
-                df = transform_statistics_fixtures(json_data)
-            elif sub_dir == "player_statistics":
-                df = transform_player_statistics(json_data)
-            # TODO: replace back to only "events"
-            elif sub_dir == "events_original":
-                df = transform_events(json_data)
+            # Take 'fixture_id' from response parameters
+            if sub_dir in ["fixture_stats", "fixture_player_stats", "events"]:
+                df.insert(0, "fixture_id", json_data["parameters"]["fixture"])
+                if sub_dir == "events":
+                    df.insert(1, "event_id", range(1, len(df) + 1))
+                else:
+                    df.insert(1, "side", ["home", "away"])
             return df
     except FileNotFoundError:
         raise FileNotFoundError(
@@ -45,33 +48,49 @@ def get_df_from_json(filename: str, sub_dir="") -> pd.DataFrame:
         )
     except json.JSONDecodeError as e:
         raise json.JSONDecodeError(
-            f"Error decoding JSON data: {str(e)}", doc="doc", pos="pos"
+            f"Error decoding JSON data: {str(e)}", doc="doc", pos=0
         )
 
 
-def write_df_to_csv(df, filename) -> None:
-    df.to_csv(f"{SOURCE_DIR}/{filename}.csv", index=False)
+def write_df_to_csv(df: pd.DataFrame, filename: str) -> None:
+    df.to_csv(f"{ROOT_DIR}/{DATA_DIR}/{filename}.csv", index=False)
 
 
-def append_data_to_csv(data, file_path) -> None:
+def append_data_to_csv(data: Union[str, List[str]], file_path: str) -> None:
     # Write data to CSV file
     with open(file_path, mode="a", newline="", encoding="utf-8") as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow([data])
+        writer = csv.writer(csvfile, doublequote=True)
+        # Convert string to a single-element list, so writer.writerow works consistently
+        rows = [data] if isinstance(data, str) else data
+        writer.writerow(rows)
 
 
-def move_json_files_between_directories(source_dir, target_dir) -> None:
+def move_json_files_between_directories(source_dir: str, target_dir: str) -> None:
     # List only JSON files in the source directory
-    files_to_move = [
-        file for file in os.listdir(f"../{source_dir}") if file.endswith(".json")
-    ]
+    files_to_move = [file for file in os.listdir(source_dir) if file.endswith(".json")]
 
     # Create the child directory if it doesn't exist
-    if not os.path.exists(f"../{target_dir}"):
-        os.makedirs(f"../{target_dir}")
+    if not os.path.exists(target_dir):
+        os.makedirs(target_dir)
 
     # Move each file to the child directory
     for file_name in files_to_move:
-        source_file_path = os.path.join(f"../{source_dir}", file_name)
-        dest_file_path = os.path.join(f"../{target_dir}", file_name)
+        source_file_path = os.path.join(source_dir, file_name)
+        dest_file_path = os.path.join(target_dir, file_name)
         shutil.move(source_file_path, dest_file_path)
+
+
+def utf8_to_ascii(text: str) -> str:
+    # Normalize to decompose special characters
+    normalized = unicodedata.normalize("NFD", text)
+    # Encode to ASCII, ignoring characters that can't be converted
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+
+    return ascii_text
+
+
+def safe_int_cast(value):
+    try:
+        return int(value) if value is not None else None
+    except ValueError:
+        return value  # Return original if it's not a valid integer string

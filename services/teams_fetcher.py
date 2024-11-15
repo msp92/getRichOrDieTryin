@@ -1,5 +1,8 @@
 import logging
 from time import sleep
+from typing import Any
+
+from requests import Response
 
 from config.vars import SLEEP_TIME
 from models.data.main import Country
@@ -10,10 +13,12 @@ db = Db()
 
 
 class TeamFetcher(APIFetcher):
-    def get_teams(self, **kwargs):
+    def get_teams(self, **kwargs: dict[str, Any]) -> Response | None:
         return self.fetch_data("teams", **kwargs)
 
-    def pull_teams_for_countries_list(self, country_ids_list_to_pull: list):
+    def pull_teams_for_countries_list(
+        self, country_ids_list_to_pull: list[int]
+    ) -> None:
         with db.get_session() as session:
             for country_id in country_ids_list_to_pull:
                 country_name = (
