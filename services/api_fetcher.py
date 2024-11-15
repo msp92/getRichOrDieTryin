@@ -30,12 +30,6 @@ class APIFetcher:
             if len(response.json()["response"]) == 0:
                 logging.info("Response empty. No data have been pulled.")
                 return None
-            if response.json()["paging"]["total"] > 1:
-                # FIXME: handle more than 1 page
-                logging.warning(
-                    "[FIXME] There are more than 1 page. Please handle this asap."
-                )
-                return None
             return response
         else:
             logging.error(
@@ -45,7 +39,7 @@ class APIFetcher:
 
     @staticmethod
     def write_response_to_json(
-        response: Response | None, filename: str, subdir:str = ""
+        response: Response | None, filename: str, subdir: str = ""
     ) -> None:
         if response:
             file_path = f"{ROOT_DIR}/{DATA_DIR}/{subdir}/{filename}.json"
