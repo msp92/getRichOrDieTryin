@@ -7,11 +7,7 @@ from typing import List, Union
 
 import pandas as pd
 from config.vars import DATA_DIR, ROOT_DIR
-from data_processing.data_transformations import (
-    transform_statistics_fixtures,
-    transform_player_statistics,
-    transform_events,
-)
+
 import sys
 from pathlib import Path
 
@@ -38,13 +34,13 @@ def get_df_from_json(filename: str, sub_dir: str = "") -> pd.DataFrame:
             json_data = json.load(file)
             df = pd.json_normalize(json_data["response"])
 
-            if sub_dir == "statistics_fixtures":
-                df = transform_statistics_fixtures(json_data)
-            elif sub_dir == "player_statistics":
-                df = transform_player_statistics(json_data)
-            # TODO: replace back to only "events"
-            elif sub_dir == "events_original":
-                df = transform_events(json_data)
+            # Take 'fixture_id' from response parameters
+            if sub_dir in ["fixture_stats", "fixture_player_stats", "events"]:
+                df.insert(0, "fixture_id", json_data["parameters"]["fixture"])
+                if sub_dir == "events":
+                    df.insert(1, "event_id", range(1, len(df) + 1))
+                else:
+                    df.insert(1, "side", ["home", "away"])
             return df
     except FileNotFoundError:
         raise FileNotFoundError(
@@ -71,9 +67,7 @@ def append_data_to_csv(data: Union[str, List[str]], file_path: str) -> None:
 
 def move_json_files_between_directories(source_dir: str, target_dir: str) -> None:
     # List only JSON files in the source directory
-    files_to_move = [
-        file for file in os.listdir(source_dir) if file.endswith(".json")
-    ]
+    files_to_move = [file for file in os.listdir(source_dir) if file.endswith(".json")]
 
     # Create the child directory if it doesn't exist
     if not os.path.exists(target_dir):
@@ -93,3 +87,10 @@ def utf8_to_ascii(text: str) -> str:
     ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
 
     return ascii_text
+
+
+def safe_int_cast(value):
+    try:
+        return int(value) if value is not None else None
+    except ValueError:
+        return value  # Return original if it's not a valid integer string
