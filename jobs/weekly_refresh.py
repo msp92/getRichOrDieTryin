@@ -12,22 +12,23 @@ logging.basicConfig(
 
 api_config = ApiConfig()
 
+# Initialize API fetchers
 leagues_fetcher = LeagueFetcher(config=api_config)
 countries_fetcher = CountryFetcher(config=api_config)
 
-data = countries_fetcher.get_countries()
-countries_fetcher.write_response_to_json(data, "countries")
-data = leagues_fetcher.get_leagues()
-leagues_fetcher.write_response_to_json(data, "leagues")
+# Fetch data from API
+countries_data = countries_fetcher.get_countries()
+countries_fetcher.write_response_to_json(countries_data, "countries")
 
-### Countries ###
-df_countries = parse_countries()
-Country.upsert(df_countries)
+leagues_data = leagues_fetcher.get_leagues()
+leagues_fetcher.write_response_to_json(leagues_data, "leagues")
 
-### Leagues ###
-df_leagues = parse_leagues()
-League.upsert(df_leagues)
+# Parse input data and upsert to tables
+countries_df = parse_countries()
+Country.upsert(countries_df)
 
-### Seasons ###
-df_seasons = parse_seasons()
-Season.upsert(df_seasons)
+leagues_df = parse_leagues()
+League.upsert(leagues_df)
+
+seasons_df = parse_seasons()
+Season.upsert(seasons_df)
