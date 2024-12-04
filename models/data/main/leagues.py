@@ -1,14 +1,13 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
-from models.base import Base
 
-# Specify the schema
-SCHEMA_NAME = "dw_main"
+from config.entity_names import LEAGUES_TABLE_NAME, DW_MAIN_SCHEMA_NAME
+from models.base import Base
 
 
 class League(Base):
-    __tablename__ = "leagues"
-    __table_args__ = {"schema": SCHEMA_NAME}
+    __tablename__ = LEAGUES_TABLE_NAME
+    __table_args__ = {"schema": DW_MAIN_SCHEMA_NAME}
 
     league_id = Column(Integer, primary_key=True)
     country_id = Column(

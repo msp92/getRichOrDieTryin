@@ -14,7 +14,9 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import relationship
-from models.data.main.leagues import League  # NOQA: F401
+
+from config.entity_names import FIXTURES_TABLE_NAME, DW_FIXTURES_SCHEMA_NAME
+#from models.data.main.leagues import League  # NOQA: F401
 from config.vars import DATA_DIR
 from models.base import Base
 from services.db import Db
@@ -26,13 +28,10 @@ sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 db = Db()
 
-# Specify the schema
-SCHEMA_NAME = "dw_fixtures"
-
 
 class Fixture(Base):
-    __tablename__ = "fixtures"
-    __table_args__ = {"schema": SCHEMA_NAME}
+    __tablename__ = FIXTURES_TABLE_NAME
+    __table_args__ = {"schema": DW_FIXTURES_SCHEMA_NAME}
 
     fixture_id = Column(Integer, primary_key=True)
     league_id = Column(Integer, ForeignKey("dw_main.leagues.league_id"), nullable=False)
@@ -41,9 +40,8 @@ class Fixture(Base):
     league_name = Column(String, nullable=False)
     season_stage = Column(String, nullable=False)
     round = Column(String)
-    date = Column(
-        DateTime, nullable=False
-    )  # TODO: convert to Column(DateTime(timezone=True))
+    # TODO: convert to Column(DateTime(timezone=True)) with Warsaw timezone
+    date = Column(DateTime, nullable=False)
     status = Column(String, nullable=False)
     referee = Column(String)
     home_team_id = Column(Integer, ForeignKey("dw_main.teams.team_id"), nullable=False)
@@ -68,8 +66,8 @@ class Fixture(Base):
     @staticmethod
     def get_dates_to_update() -> list[str]:
         curr_date = dt.date.today()
-        start_date = curr_date - dt.timedelta(days=2)
-        end_date = curr_date + dt.timedelta(days=2)
+        start_date = curr_date - dt.timedelta(days=5)
+        end_date = curr_date + dt.timedelta(days=3)
 
         # Generate list of dates as strings
         date_range = [
@@ -217,126 +215,6 @@ class Fixture(Base):
             team_id, season_year, "NS"
         )
         return team_upcoming_fixtures_df
-
-    @classmethod
-    def get_season_stats_by_team(cls, team_id: int, season_year: str) -> pd.DataFrame:
-        team_results_df = cls.get_season_fixtures_by_team(team_id, season_year, "FT")
-
-        # Create grouping subsets: home, away
-        team_results_df["team_group"] = team_results_df.apply(
-            lambda row: "home" if row["home_team_id"] == team_id else "away", axis=1
-        )
-        team_results_df["team_name"] = team_results_df.apply(
-            lambda row: (
-                row["home_team_name"]
-                if row["team_group"] == "home"
-                else row["away_team_name"]
-            ),
-            axis=1,
-        )
-        team_results_df = team_results_df.sort_values(by="date")
-
-        # Add 'form' column to the DataFrame
-        team_results_df["form"] = team_results_df.apply(
-            lambda row: (
-                "W"
-                if (
-                    row["team_group"] == "home"
-                    and row["goals_home"] > row["goals_away"]
-                )
-                or (
-                    row["team_group"] == "away"
-                    and row["goals_away"] > row["goals_home"]
-                )
-                else "D" if row["goals_home"] == row["goals_away"] else "L"
-            ),
-            axis=1,
-        )
-
-        # TODO: make similar col like above but for goals_scored and conceded
-
-        team_stats_grouped = (
-            team_results_df.groupby(["team_group", "team_name"])
-            .agg(
-                games=("fixture_id", "count"),
-                wins=("form", lambda x: (x == "W").sum()),
-                draws=("form", lambda x: (x == "D").sum()),
-                loses=("form", lambda x: (x == "L").sum()),
-                # goals_scored=("goals_home" if "team_group" == "home" else "goals_away", "sum"),  # TODO: why it doesn't sum correctly??
-                # goals_conceded=("goals_away" if "team_group" == "home" else "goals_home", "sum"),  # TODO: why it doesn't sum correctly??
-                # avg_goals_scored=("goals_home", lambda x: x.mean()),
-                # avg_goals_conceded=("goals_away", lambda x: x.mean()),
-                form=("form", lambda x: "".join(x)),
-            )
-            .reset_index()
-        )
-        # TODO: make it much shorter
-        team_stats_grouped.loc[
-            team_stats_grouped["team_group"] == "home", "goals_scored"
-        ] = team_results_df.loc[
-            team_results_df["team_group"] == "home", "goals_home"
-        ].sum()
-        team_stats_grouped.loc[
-            team_stats_grouped["team_group"] == "away", "goals_scored"
-        ] = team_results_df.loc[
-            team_results_df["team_group"] == "away", "goals_away"
-        ].sum()
-        team_stats_grouped.loc[
-            team_stats_grouped["team_group"] == "home", "goals_conceded"
-        ] = team_results_df.loc[
-            team_results_df["team_group"] == "home", "goals_away"
-        ].sum()
-        team_stats_grouped.loc[
-            team_stats_grouped["team_group"] == "away", "goals_conceded"
-        ] = team_results_df.loc[
-            team_results_df["team_group"] == "away", "goals_home"
-        ].sum()
-        team_stats_grouped["avg_goals_scored"] = (
-            team_stats_grouped["goals_scored"] / team_stats_grouped["games"]
-        )
-        team_stats_grouped["avg_goals_conceded"] = (
-            team_stats_grouped["goals_conceded"] / team_stats_grouped["games"]
-        )
-
-        total_row = pd.DataFrame(
-            {
-                "team_group": "total",
-                "team_name": team_stats_grouped.iloc[0]["team_name"],
-                "games": team_stats_grouped.iloc[0]["games"]
-                + team_stats_grouped.iloc[1]["games"],
-                "wins": team_stats_grouped.iloc[0]["wins"]
-                + team_stats_grouped.iloc[1]["wins"],
-                "draws": team_stats_grouped.iloc[0]["draws"]
-                + team_stats_grouped.iloc[1]["draws"],
-                "loses": team_stats_grouped.iloc[0]["loses"]
-                + team_stats_grouped.iloc[1]["loses"],
-                "goals_scored": int(
-                    team_stats_grouped.iloc[0]["goals_scored"]
-                    + team_stats_grouped.iloc[1]["goals_scored"]
-                ),
-                "goals_conceded": int(
-                    team_stats_grouped.iloc[0]["goals_conceded"]
-                    + team_stats_grouped.iloc[1]["goals_conceded"]
-                ),
-            },
-            index=[0],
-        )
-        total_row["avg_goals_scored"] = total_row["goals_scored"] / total_row["games"]
-        total_row["avg_goals_conceded"] = (
-            total_row["goals_conceded"] / total_row["games"]
-        )
-        total_row["form"] = "".join(team_results_df["form"])
-
-        team_stats_df = pd.concat([team_stats_grouped, total_row]).reset_index(
-            drop=True
-        )
-        team_stats_df["avg_goals_scored"] = team_stats_df["avg_goals_scored"].apply(
-            lambda x: round(x, 3)
-        )
-        team_stats_df["avg_goals_conceded"] = team_stats_df["avg_goals_conceded"].apply(
-            lambda x: round(x, 3)
-        )
-        return team_stats_df
 
     @classmethod
     def create_game_preview(cls, home_team_id: int, away_team_id: int) -> pd.DataFrame:

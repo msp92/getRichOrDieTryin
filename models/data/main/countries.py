@@ -1,14 +1,13 @@
 from sqlalchemy import Column, Integer, String, Sequence
 from sqlalchemy.orm import relationship
-from models.base import Base
 
-# Specify the schema
-SCHEMA_NAME = "dw_main"
+from config.entity_names import COUNTRIES_TABLE_NAME, DW_MAIN_SCHEMA_NAME
+from models.base import Base
 
 
 class Country(Base):
-    __tablename__ = "countries"
-    __table_args__ = {"schema": SCHEMA_NAME}
+    __tablename__ = COUNTRIES_TABLE_NAME
+    __table_args__ = {"schema": DW_MAIN_SCHEMA_NAME}
 
     league = relationship("League", back_populates="country")
     season = relationship("Season", back_populates="country")

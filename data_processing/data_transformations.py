@@ -3,6 +3,7 @@ import csv
 import numpy as np
 import pandas as pd
 
+from config.entity_names import REFEREES_DIR
 from config.vars import DATA_DIR
 import sys
 from pathlib import Path
@@ -15,7 +16,9 @@ def create_referees_lkp_dict_from_csv(filename: str) -> dict[str, str]:
     referee_mapping = {}
 
     # Read the CSV file and populate the dictionary
-    with open(f"{DATA_DIR}/fixtures/{filename}", mode="r", encoding="utf-8") as infile:
+    with open(
+        f"{DATA_DIR}/{REFEREES_DIR}/{filename}", mode="r", encoding="utf-8"
+    ) as infile:
         reader = csv.reader(infile)
         next(reader)  # Skip the header row
         for rows in reader:

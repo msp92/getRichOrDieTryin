@@ -7,6 +7,11 @@ from typing import Optional, Any
 from requests import Response
 
 from config.api_config import ApiConfig
+from config.entity_names import (
+    FIXTURES_FILES_PREFIX,
+    FIXTURES_API_ENDPOINT,
+    FIXTURES_DIR,
+)
 from config.vars import SLEEP_TIME
 from models.data.main import League, Season
 from services.api_fetcher import APIFetcher
@@ -35,7 +40,7 @@ class FixtureFetcher(APIFetcher):
         status: Optional[str] = None,
         **kwargs: dict[str, Any],
     ) -> Response | None:
-        return self.fetch_data("fixtures", **kwargs)
+        return self.fetch_data(FIXTURES_API_ENDPOINT, **kwargs)
 
     ##### UPDATES METHODS #####
     def pull_fixtures_by_dates(self, dates_to_pull: list[str] | None) -> None:
@@ -54,10 +59,10 @@ class FixtureFetcher(APIFetcher):
             return None
 
         for single_date in dates_to_pull:
-            endpoint = f"fixtures?date={single_date}"
+            endpoint = f"{FIXTURES_API_ENDPOINT}?date={single_date}"
             resp = self.fetch_data(endpoint)
             self.write_response_to_json(
-                resp, f"FIXTURES_{single_date}", "fixtures/updates"
+                resp, f"{FIXTURES_FILES_PREFIX}{single_date}", f"{FIXTURES_DIR}"
             )
             sleep(SLEEP_TIME)
 
@@ -73,11 +78,11 @@ class FixtureFetcher(APIFetcher):
             None
         """
         date_to_pull = dt.datetime.today().strftime("%Y-%m-%d")
-        endpoint = f"fixtures?date={date_to_pull}&status=NS"
+        endpoint = f"{FIXTURES_API_ENDPOINT}?date={date_to_pull}&status=NS"
         timestamp = dt.datetime.now().strftime("%Y%m%d%H%M%S")
         resp = self.fetch_data(endpoint)
         self.write_response_to_json(
-            resp, f"NOT_STARTED_{date_to_pull}_{timestamp}", "fixtures/updates"
+            resp, f"NOT_STARTED_{date_to_pull}_{timestamp}", f"{FIXTURES_DIR}"
         )
         return None
 
@@ -117,7 +122,7 @@ class FixtureFetcher(APIFetcher):
                             f"Pulling fixtures for {league_name}, season: {season_year[0]}..."
                         )
                         season_data = self.fetch_data(
-                            f"fixtures?league={league_id}&season={season_year[0]}"
+                            f"{FIXTURES_API_ENDPOINT}?league={league_id}&season={season_year[0]}"
                         )
                         self.write_response_to_json(
                             season_data,
@@ -160,7 +165,7 @@ class FixtureFetcher(APIFetcher):
                 self.write_response_to_json(
                     season_data,
                     f"{league_id}-{league_name}-{season_id_to_pull}",
-                    "fixtures/league_seasons",
+                    f"{FIXTURES_DIR}/league_seasons",
                 )
             except Exception as e:
                 logging.error(e)

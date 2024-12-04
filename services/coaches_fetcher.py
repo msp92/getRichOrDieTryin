@@ -1,10 +1,11 @@
-import csv
 from time import sleep
 from typing import Any
 
 from requests import Response
 
+from config.entity_names import COACHES_DIR, COACHES_API_ENDPOINT
 from config.vars import SLEEP_TIME
+from models.data.main import Team
 from services.api_fetcher import APIFetcher
 
 
@@ -13,11 +14,9 @@ class CoachesFetcher(APIFetcher):
         return self.fetch_data("couchs", **kwargs)
 
     def pull_coaches_for_all_teams(self) -> None:
-        # TODO: replace with teams from table
-        with open("teams_to_pull_coaches.csv", mode="r", encoding="utf-8") as csvfile:
-            reader = csv.reader(csvfile)
-            for team_id in reader:
-                endpoint = f"coachs?team={team_id[0]}"
-                resp = self.fetch_data(endpoint)
-                self.write_response_to_json(resp, f"coach_team_{team_id[0]}", "coaches")
-                sleep(SLEEP_TIME)
+        teams_df = Team.get_df_from_table()
+        for team_id in teams_df["team_id"]:
+            endpoint = f"{COACHES_API_ENDPOINT}?team={team_id[0]}"
+            resp = self.fetch_data(endpoint)
+            self.write_response_to_json(resp, f"COACH_TEAM_{team_id[0]}", COACHES_DIR)
+            sleep(SLEEP_TIME)

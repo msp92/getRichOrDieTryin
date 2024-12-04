@@ -1,9 +1,7 @@
 import logging
 from time import sleep
-from typing import Any
 
-from requests import Response
-
+from config.entity_names import TEAMS_DIR, TEAMS_API_ENDPOINT
 from config.vars import SLEEP_TIME
 from models.data.main import Country
 from services.api_fetcher import APIFetcher
@@ -11,35 +9,32 @@ from services.db import Db
 
 db = Db()
 
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 
 class TeamFetcher(APIFetcher):
-    def get_teams(self, **kwargs: dict[str, Any]) -> Response | None:
-        return self.fetch_data("teams", **kwargs)
-
-    def pull_teams_for_countries_list(
-        self, country_ids_list_to_pull: list[int]
-    ) -> None:
+    def fetch_all_teams(self) -> None:
         with db.get_session() as session:
-            for country_id in country_ids_list_to_pull:
-                country_name = (
-                    session.query(Country.name)
-                    .filter(Country.country_id == country_id)
-                    .scalar()
-                )
+            try:
+                countries = [
+                    country[0] for country in session.query(Country.country_name).all()
+                ]
 
-                logging.info("Sleeping for a few seconds to avoid reaching limit.")
-                sleep(SLEEP_TIME)
-
-                try:
-                    logging.info(f"Pulling teams for {country_name}...")
-                    teams_data = self.fetch_data(f"teams?country={country_name}")
-                    # Check if teams_data is not empty
-                    if not teams_data:
-                        logging.info("No data found for", country_name)
-                        continue
-                    self.write_response_to_json(
-                        teams_data, f"{country_id}_{country_name}", "teams"
-                    )
-                except Exception as e:
-                    logging.error(e)
-                    continue
+                if countries:
+                    for country_name in countries:
+                        logging.info(f"Pulling teams for {country_name}...")
+                        teams_data = self.fetch_data(
+                            f"{TEAMS_API_ENDPOINT}?country={country_name}"
+                        )
+                        sleep(SLEEP_TIME)
+                        # Check if teams_data is not empty
+                        if not teams_data:
+                            logging.info("No data found for", country_name)
+                            continue
+                        self.write_response_to_json(
+                            teams_data, f"TEAMS_{country_name}", TEAMS_DIR
+                        )
+            except Exception as e:
+                logging.error(e)
