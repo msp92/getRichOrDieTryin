@@ -39,7 +39,6 @@ def get_df_from_json(filename: str, sub_dir: str) -> pd.DataFrame:
         with open(f"{ROOT_DIR}/{DATA_DIR}/{sub_dir}/{filename}.json", "r") as file:
             json_data = json.load(file)
             df = pd.json_normalize(json_data["response"])
-
             # Take 'fixture_id' from response parameters
             if sub_dir in [
                 FIXTURE_STATS_DIR,

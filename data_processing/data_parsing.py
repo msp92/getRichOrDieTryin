@@ -280,23 +280,17 @@ def parse_coaches() -> pd.DataFrame:
     ]
     # Remove rows without team_id
     final_df = final_df[final_df["team_id"] != 0]
-    # Remove worse entry for valid duplicates
-    final_df = final_df[
-        ~((final_df["coach_id"] == 492) & (final_df["end_date"] == "2023-02-01"))
-    ]  # TODO: these two conditions could be merged
-    # Remove worse entry for valid duplicates
-    final_df = final_df[
-        ~((final_df["coach_id"] == 9964) & (final_df["end_date"] == "2007-05-01"))
+    # Remove worse entries for valid duplicates
+    conditions = [
+        (final_df["coach_id"] == 492) & (final_df["end_date"] == "2023-02-01"),
+        (final_df["coach_id"] == 9964) & (final_df["end_date"] == "2007-05-01"),
+        (final_df["coach_id"] == 14206) & (final_df["end_date"] == "2022-08-01"),
     ]
-    # Remove worse entry for valid duplicates
-    final_df = final_df[
-        ~((final_df["coach_id"] == 14206) & (final_df["end_date"] == "2022-08-01"))
-    ]
-
+    final_df = final_df[~(conditions[0] | conditions[1] | conditions[2])]
     return final_df.sort_values("coach_id", ascending=True)
 
 
-def parse_fixture_events_file(file_name) -> pd.DataFrame:
+def parse_fixture_events_file(file_name: str) -> pd.DataFrame:
     # logging.info("** Parsing fixture events data **")
     # raw_df = load_all_files_from_data_directory("events")
     raw_df = get_df_from_json(file_name[:-5], sub_dir="fixture_events")
@@ -330,7 +324,7 @@ def parse_fixture_events_file(file_name) -> pd.DataFrame:
     return final_df
 
 
-def parse_fixture_stats_file(file_name) -> pd.DataFrame:
+def parse_fixture_stats_file(file_name: str) -> pd.DataFrame:
     # logging.info("** Parsing fixture stats data **")
     raw_df = get_df_from_json(file_name[:-5], sub_dir=FIXTURE_STATS_DIR)
     # raw_df = load_all_files_from_data_directory("fixture_stats")
@@ -340,14 +334,14 @@ def parse_fixture_stats_file(file_name) -> pd.DataFrame:
     # Transform from {"key": "Shots On Goal", "value": 5} to {"Shots On Goal": 10}
     raw_df["statistics"] = raw_df["statistics"].apply(
         lambda x: {d["type"]: d["value"] for d in x}
-    )  # TODO: think of changing it to vectorized operations with explode first
+    )
     final_df = raw_df.rename(columns={"team.id": "team_id", "team.name": "team_name"})[
         ["fixture_id", "side", "team_id", "team_name", "statistics"]
     ]
     return final_df
 
 
-def parse_fixture_player_stats_file(file_name) -> pd.DataFrame:
+def parse_fixture_player_stats_file(file_name: str) -> pd.DataFrame:
     # logging.info("** Parsing fixture players stats data **")
     # raw_df = load_all_files_from_data_directory("player_stats")
     raw_df = get_df_from_json(file_name[:-5], sub_dir=FIXTURE_PLAYER_STATS_DIR)
@@ -367,7 +361,7 @@ def parse_fixture_player_stats_file(file_name) -> pd.DataFrame:
             }
             for player in players
         ]
-    )  # TODO: think of changing it to vectorized operations with explode first
+    )
     # Explode the 'players' column to create a row for each player in each row of df
     raw_df = raw_df.explode("players", ignore_index=True)
 

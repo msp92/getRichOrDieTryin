@@ -30,7 +30,7 @@ class FixtureEvent(Base):
     @staticmethod
     def get_dates_to_update() -> list[str]:
         curr_date = dt.date.today()
-        start_date = curr_date - dt.timedelta(days=5)
+        start_date = curr_date - dt.timedelta(days=2)
 
         # Generate list of dates as strings
         date_range = [

@@ -1,7 +1,9 @@
 import logging
 
-from data_processing.data_aggregations import calculate_breaks_team_stats_shares_from_agg, \
-    aggregate_breaks_team_stats_from_raw
+from data_processing.data_aggregations import (
+    calculate_breaks_team_stats_shares_from_agg,
+    aggregate_breaks_team_stats_from_raw,
+)
 from models.analytics.breaks import Break, BreaksTeamStats, BreaksTeamStatsShares
 from models.data.fixtures import Fixture
 
