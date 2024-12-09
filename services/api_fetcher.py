@@ -1,27 +1,25 @@
 import json
 import logging
-from typing import Any
-
 import requests
+
+from typing import Union
 from requests import Response
 
 from config.api_config import ApiConfig
 from config.vars import DATA_DIR, ROOT_DIR
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 
-class APIFetcher:
+class ApiFetcher:
     def __init__(self, config: ApiConfig) -> None:
         self.config = config
 
-    def fetch_data(self, endpoint: str, **kwargs: dict[str, Any]) -> Response | None:
+    def fetch_data(
+        self, endpoint: str, **kwargs: dict[str, Union[int, str]]
+    ) -> Response | None:
         # Check subscription status before making the request
         if not self.config.has_quota():
             raise Exception("Quota exceeded. Cannot make any more requests.")

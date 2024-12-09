@@ -4,22 +4,15 @@ import pandas as pd
 from numpy import product
 from sqlalchemy import Column, Integer, String, Date, Sequence
 
+from config.entity_names import ANALYTICS_BREAKS_SCHEMA_NAME
 from config.vars import DATA_DIR
-from models.base import Base
 from models.data.main import Team
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parent.parent.parent))
-
-
-# Specify the schema
-SCHEMA_NAME = "analytics_breaks"
+from models.base import Base
 
 
 class Pair(Base):
     __tablename__ = "pairs"
-    __table_args__ = {"schema": SCHEMA_NAME}
+    __table_args__ = {"schema": ANALYTICS_BREAKS_SCHEMA_NAME}
 
     pair_id = Column(Integer, Sequence("pair_id_seq", 1), primary_key=True)
     team_id_1 = Column(Integer, nullable=False)

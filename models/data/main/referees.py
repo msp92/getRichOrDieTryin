@@ -1,8 +1,7 @@
-import logging
-import re
-
-import pandas as pd
 import difflib
+import logging
+import pandas as pd
+import re
 
 from config.entity_names import REFEREES_DIR
 from config.vars import ROOT_DIR, DATA_DIR
@@ -32,7 +31,7 @@ class Referee:
         exact_match = mapping_df[mapping_df["original_name"] == referee_name]
 
         if not exact_match.empty:
-            return exact_match.iloc[0]["gold_name"]
+            return str(exact_match.iloc[0]["gold_name"])
 
         # Check for similar names if no exact match is found
         similar_names = mapping_df["original_name"].apply(
@@ -53,17 +52,18 @@ class Referee:
 
         if high_similarity_names:
             # Automatically take the gold_name of the highest similarity match
-            selected_name, similarity = high_similarity_names[0]
-            selected_gold_name = mapping_df[
-                mapping_df["original_name"] == selected_name
+            name, similarity = high_similarity_names[0]
+            mapped_name: str = mapping_df[
+                mapping_df["original_name"] == name
             ].iloc[0]["gold_name"]
             logging.info(
-                f"Auto-mapping '{referee_name}' to '{selected_gold_name}' (Similarity: {similarity:.2f})"
+                f"Auto-mapping '{referee_name}' to '{mapped_name}' (Similarity: {similarity:.2f})"
             )
             append_data_to_csv(
-                [referee_name, selected_gold_name],
+                [referee_name, mapped_name],
                 f"{ROOT_DIR}/{DATA_DIR}/{REFEREES_DIR}/mapping_referees.csv",
             )
+            return mapped_name
         elif similar_names:
             # If incoming_name and original_name contains of initials, and they differ then exclude them
             incoming_initial = cls.find_initial_with_period(referee_name)
@@ -71,7 +71,7 @@ class Referee:
             if (similar_initial and not incoming_initial) or (
                 not similar_initial and incoming_initial
             ):
-                logging.info("MAM CIE")  # FIXME
+                logging.info("??? Assess what to do in such case ???")  # FIXME
             if (
                 similar_initial
                 and incoming_initial
@@ -81,6 +81,7 @@ class Referee:
                 append_data_to_csv(
                     referee_name, f"{ROOT_DIR}/{DATA_DIR}/{REFEREES_DIR}/new_referees.csv"
                 )
+                return None
 
             # Present similar names to the user, with corresponding gold_names
             logging.info(f"Similar names found for '{referee_name}':")
@@ -88,7 +89,7 @@ class Referee:
                 gold_name = mapping_df[mapping_df["original_name"] == name].iloc[0][
                     "gold_name"
                 ]
-                print(
+                logging.info(
                     f"{idx}. '{name}' (similarity: {similarity:.2f}) -> gold_name: '{gold_name}'"
                 )
 
@@ -100,17 +101,20 @@ class Referee:
             if choice.isdigit():
                 selected_idx = int(choice) - 1  # Convert input to zero-based index
                 if 0 <= selected_idx < len(similar_names):
-                    selected_name, _ = similar_names[selected_idx]
+                    name, _ = similar_names[selected_idx]
                     # Find the gold_name corresponding to the selected name
-                    selected_gold_name = mapping_df[
-                        mapping_df["original_name"] == selected_name
+                    selected_gold_name: str = mapping_df[
+                        mapping_df["original_name"] == name
                     ].iloc[0]["gold_name"]
                     # Add the new mapping to the list
                     append_data_to_csv(
                         [referee_name, selected_gold_name],
                         f"{ROOT_DIR}/{DATA_DIR}/{REFEREES_DIR}/mapping_referees.csv",
                     )
+                    return selected_gold_name
             # Add the new mapping to the list
             append_data_to_csv(
                 referee_name, f"{ROOT_DIR}/{DATA_DIR}/{REFEREES_DIR}/new_referees.csv"
             )
+            return None
+        return None
