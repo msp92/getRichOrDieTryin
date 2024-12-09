@@ -1,7 +1,6 @@
-import logging
-
-import pandas as pd
 import datetime as dt
+import logging
+import pandas as pd
 
 from sqlalchemy import (
     Column,
@@ -16,17 +15,7 @@ from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import relationship
 
 from config.entity_names import FIXTURES_TABLE_NAME, DW_FIXTURES_SCHEMA_NAME
-#from models.data.main.leagues import League  # NOQA: F401
-from config.vars import DATA_DIR
 from models.base import Base
-from services.db import Db
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-
-
-db = Db()
 
 
 class Fixture(Base):
@@ -55,6 +44,10 @@ class Fixture(Base):
     update_date = Column(DateTime)
 
     league = relationship("League", back_populates="fixture")
+    stats = relationship("FixtureStat", back_populates="fixture")
+    player_stats = relationship("FixturePlayerStat", back_populates="fixture")
+    events = relationship("FixtureEvent", back_populates="fixture")
+
 
     home_team = relationship(
         "Team", foreign_keys=[home_team_id], back_populates="home_team"
@@ -78,7 +71,7 @@ class Fixture(Base):
 
     @classmethod
     def calculate_share_of_not_started_games(cls, date_to_check: str) -> int:
-        with db.get_session() as session:
+        with cls.db.get_session() as session:
             try:
                 all_fixture_count: int = (
                     session.query(func.count(cls.fixture_id))
@@ -110,9 +103,9 @@ class Fixture(Base):
         Raises:
             Exception: If an error occurs during the database operation.
         """
-        with db.get_session() as session:
+        with cls.db.get_session() as session:
             try:
-                max_date = (
+                max_date: dt.datetime = (
                     session.query(func.max(cls.date))
                     .filter(cls.status == "FT")
                     .scalar()
@@ -135,11 +128,11 @@ class Fixture(Base):
         Raises:
             Exception: If an error occurs during the database operation.
         """
-        with db.get_session() as session:
+        with cls.db.get_session() as session:
             try:
                 today_fixtures_df = pd.read_sql_query(
                     session.query(cls).filter(cls.date == dt.date.today()).statement,
-                    db.engine,
+                    cls.db.engine,
                 )
                 return today_fixtures_df
             except Exception:
@@ -165,7 +158,7 @@ class Fixture(Base):
         Raises:
             Exception: If there's any error during the database query or processing.
         """
-        with db.get_session() as session:
+        with cls.db.get_session() as session:
             try:
                 team_fixtures_df = pd.read_sql_query(
                     session.query(cls)
@@ -178,7 +171,7 @@ class Fixture(Base):
                         & (cls.league_id != 667)  # Excluding Friendlies
                     )
                     .statement,
-                    db.engine,
+                    cls.db.engine,
                 )
                 # Return all except Not Started - most statuses are for finished games
                 if status == "FT":
@@ -216,20 +209,20 @@ class Fixture(Base):
         )
         return team_upcoming_fixtures_df
 
-    @classmethod
-    def create_game_preview(cls, home_team_id: int, away_team_id: int) -> pd.DataFrame:
-        home_team_stats = cls.get_season_stats_by_team(home_team_id, "2023")
-        away_team_stats = cls.get_season_stats_by_team(away_team_id, "2023")
-
-        timestamp = dt.datetime.now().strftime("%Y%m%d%H%M%S")
-        game_preview_df = pd.concat([home_team_stats, away_team_stats]).reset_index(
-            drop=True
-        )
-        game_preview_df.to_csv(
-            f"{DATA_DIR}/previews/{timestamp}_{home_team_id}-{away_team_id}.csv",
-            index=False,
-        )
-        return game_preview_df
+    # @staticmethod
+    # def create_game_preview(home_team_id: int, away_team_id: int) -> pd.DataFrame:
+    #     home_team_stats = Team.get_statistics(home_team_id, "2023")
+    #     away_team_stats = Team.get_statistics(away_team_id, "2023")
+    #
+    #     timestamp = dt.datetime.now().strftime("%Y%m%d%H%M%S")
+    #     game_preview_df = pd.concat([home_team_stats, away_team_stats]).reset_index(
+    #         drop=True
+    #     )
+    #     game_preview_df.to_csv(
+    #         f"{DATA_DIR}/previews/{timestamp}_{home_team_id}-{away_team_id}.csv",
+    #         index=False,
+    #     )
+    #     return game_preview_df
 
     @classmethod
     def get_breaks(cls) -> pd.DataFrame:
@@ -243,14 +236,14 @@ class Fixture(Base):
             & (cls.status == "FT")
         )
 
-        with db.get_session() as session:
+        with cls.db.get_session() as session:
             try:
                 overcome_games_df = pd.read_sql_query(
                     session.query(cls)
                     .filter(overcome_mask)
                     .order_by(asc(cls.date))
                     .statement,
-                    db.engine,
+                    cls.db.engine,
                 )
             except InvalidRequestError as e:
                 raise InvalidRequestError(
