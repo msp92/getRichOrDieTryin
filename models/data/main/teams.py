@@ -1,14 +1,13 @@
 import logging
-import typing
-
 import pandas as pd
+
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
 
 from config.entity_names import TEAMS_TABLE_NAME, DW_MAIN_SCHEMA_NAME
 from models.base import Base
-from models.data.fixtures import Fixture
 from models.data.main import Country
+from models.data.fixtures import Fixture
 
 
 class Team(Base):
@@ -16,12 +15,11 @@ class Team(Base):
     __table_args__ = {"schema": DW_MAIN_SCHEMA_NAME}
 
     country = relationship("Country", back_populates="team")
-    # coach = relationship("Coach", foreign_keys="Coach.team_id", back_populates="team")
     home_team = relationship(
-        "Fixture", foreign_keys="Fixture.home_team_id", back_populates="home_team"
+        "Fixture", foreign_keys=[Fixture.home_team_id], back_populates="home_team"
     )
     away_team = relationship(
-        "Fixture", foreign_keys="Fixture.away_team_id", back_populates="away_team"
+        "Fixture", foreign_keys=[Fixture.away_team_id], back_populates="away_team"
     )
 
     team_id = Column(Integer, primary_key=True)
@@ -32,17 +30,17 @@ class Team(Base):
     team_name = Column(String)
     logo = Column(String)
 
-    @staticmethod
-    def insert_missing_teams_into_db(df: pd.DataFrame) -> None:
+    @classmethod
+    def insert_missing_teams_into_db(cls, fixtures_df: pd.DataFrame) -> None:
         logging.info("Checking for teams in fixtures that are missing in Team table...")
         # Get unique teams from all pulled fixtures
-        unique_team_ids = pd.unique(pd.concat([df["home_team_id"], df["away_team_id"]]))
+        unique_team_ids = pd.unique(pd.concat([fixtures_df["home_team_id"], fixtures_df["away_team_id"]]))
         unique_team_ids_df = pd.DataFrame({"team_id": unique_team_ids})
 
         # Mark which teams exists in Team table and which do not
         merged_df = pd.merge(
             unique_team_ids_df,
-            Team.get_df_from_table(),
+            cls.get_df_from_table(),
             on="team_id",
             how="left",
             indicator=True,
@@ -56,10 +54,10 @@ class Team(Base):
         )
 
         # Get fixtures of missing teams
-        missing_teams_in_fixtures_df = df[
-            df["home_team_id"].isin(missing_ids_df["team_id"])
-            | df["away_team_id"].isin(missing_ids_df["team_id"])
-        ]
+        missing_teams_in_fixtures_df = fixtures_df[
+            fixtures_df["home_team_id"].isin(missing_ids_df["team_id"])
+            | fixtures_df["away_team_id"].isin(missing_ids_df["team_id"])
+            ]
         # Get filtered home/away dfs
         home_teams_missing = missing_teams_in_fixtures_df[
             ["home_team_id", "home_team_name", "league_id", "country_name"]
@@ -87,7 +85,7 @@ class Team(Base):
             unique_teams_filtered_df.duplicated(subset="team_id", keep=False)
         ]
 
-        def choose_duplicates(group: pd.DataFrame) -> typing.Any:
+        def choose_duplicates(group: pd.DataFrame) -> pd.DataFrame | None:
             # Check if 'country_id' values are the same (case: different team_name for the same team)
             if group["team_name"].nunique() == 2:
                 # Remove row with shorter 'team_name'
@@ -121,11 +119,10 @@ class Team(Base):
             Team.upsert(final_df)
 
     @staticmethod
-    def get_season_stats_by_team(team_id: int, season_year: str) -> pd.DataFrame:
+    def get_statistics(team_id: int, season_year: str) -> pd.DataFrame:
         team_results_df = Fixture.get_season_fixtures_by_team(
             team_id, season_year, "FT"
         )
-        team_stats_df = Fixture.get_season_stats_by_team(team_id, season_year, "FT")
 
         # Create grouping subsets: home, away
         team_results_df["team_group"] = team_results_df.apply(
@@ -158,7 +155,18 @@ class Team(Base):
             axis=1,
         )
 
-        # TODO: make similar col like above but for goals_scored and conceded
+        team_results_df["goals_scored"] = team_results_df.apply(
+            lambda row: (
+                row["goals_home"] if row["team_group"] == "home" else row["goals_away"]
+            ),
+            axis=1,
+        )
+        team_results_df["goals_conceded"] = team_results_df.apply(
+            lambda row: (
+                row["goals_away"] if row["team_group"] == "home" else row["goals_home"]
+            ),
+            axis=1,
+        )
 
         team_stats_grouped = (
             team_results_df.groupby(["team_group", "team_name"])
@@ -167,35 +175,32 @@ class Team(Base):
                 wins=("form", lambda x: (x == "W").sum()),
                 draws=("form", lambda x: (x == "D").sum()),
                 loses=("form", lambda x: (x == "L").sum()),
-                # goals_scored=("goals_home" if "team_group" == "home" else "goals_away", "sum"),  # FIXME: didn't sum as expected
-                # goals_conceded=("goals_away" if "team_group" == "home" else "goals_home", "sum"),  # FIXME: didn't sum as expected
-                # avg_goals_scored=("goals_home", lambda x: x.mean()),
-                # avg_goals_conceded=("goals_away", lambda x: x.mean()),
+                goals_scored=("goals_scored", "sum"),
+                goals_conceded=("goals_conceded", "sum"),
+                avg_goals_scored=("avg_goals_scored", "mean"),
+                avg_goals_conceded=("avg_goals_conceded", "mean"),
                 form=("form", lambda x: "".join(x)),
             )
             .reset_index()
         )
-        # TODO: make it much shorter
-        team_stats_grouped.loc[
-            team_stats_grouped["team_group"] == "home", "goals_scored"
-        ] = team_results_df.loc[
-            team_results_df["team_group"] == "home", "goals_home"
-        ].sum()
-        team_stats_grouped.loc[
-            team_stats_grouped["team_group"] == "away", "goals_scored"
-        ] = team_results_df.loc[
-            team_results_df["team_group"] == "away", "goals_away"
-        ].sum()
-        team_stats_grouped.loc[
-            team_stats_grouped["team_group"] == "home", "goals_conceded"
-        ] = team_results_df.loc[
-            team_results_df["team_group"] == "home", "goals_away"
-        ].sum()
-        team_stats_grouped.loc[
-            team_stats_grouped["team_group"] == "away", "goals_conceded"
-        ] = team_results_df.loc[
-            team_results_df["team_group"] == "away", "goals_home"
-        ].sum()
+
+        # Goals scored/conceded
+        for group, goals_scored, goals_conceded in [
+            ("home", "goals_home", "goals_away"),
+            ("away", "goals_away", "goals_home"),
+        ]:
+            team_stats_grouped.loc[
+                team_stats_grouped["team_group"] == group, "goals_scored"
+            ] = team_results_df.loc[
+                team_results_df["team_group"] == group, goals_scored
+            ].sum()
+            team_stats_grouped.loc[
+                team_stats_grouped["team_group"] == group, "goals_conceded"
+            ] = team_results_df.loc[
+                team_results_df["team_group"] == group, goals_conceded
+            ].sum()
+
+        # Average goals scored/conceded
         team_stats_grouped["avg_goals_scored"] = (
             team_stats_grouped["goals_scored"] / team_stats_grouped["games"]
         )

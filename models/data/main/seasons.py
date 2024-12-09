@@ -14,9 +14,7 @@ class Season(Base):
 
     season_id = Column(String, primary_key=True)
     league_id = Column(Integer, ForeignKey("dw_main.leagues.league_id"), nullable=False)
-    country_id = Column(
-        Integer, ForeignKey("dw_main.countries.country_id"), nullable=False
-    )
+    country_id = Column(Integer, ForeignKey("dw_main.countries.country_id"), nullable=False)
     year = Column(Integer)
     start_date = Column(Date)
     end_date = Column(Date)
