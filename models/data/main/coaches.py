@@ -1,8 +1,7 @@
 from sqlalchemy import Column, Integer, String, Date, PrimaryKeyConstraint
-from models.base import Base
 
-# Specify the schema
-SCHEMA_NAME = "dw_main"
+from config.entity_names import DW_MAIN_SCHEMA_NAME
+from models.base import Base
 
 
 class Coach(Base):
@@ -11,7 +10,7 @@ class Coach(Base):
         PrimaryKeyConstraint(
             "coach_id", "team_id", "start_date", name="pk_coach_team_startDate"
         ),
-        {"schema": SCHEMA_NAME},
+        {"schema": DW_MAIN_SCHEMA_NAME},
     )
 
     coach_id = Column(Integer, nullable=False)

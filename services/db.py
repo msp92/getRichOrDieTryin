@@ -1,16 +1,15 @@
 import logging
+import pandas as pd
 import typing
 
-import pandas as pd
-from typing_extensions import Optional, Any
-
-import models.base as base_model
 
 from contextlib import contextmanager
-from typing import Callable
 from sqlalchemy import create_engine
+from sqlalchemy.schema import MetaData
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import sessionmaker, scoped_session, Query, Session
+from sqlalchemy.orm import sessionmaker, scoped_session, Query
+from typing import Callable
+from typing_extensions import Optional, Any
 
 from config.db_config import DbConfig
 
@@ -38,7 +37,7 @@ class Db:
         return self._construct_db_url(self.config)
 
     @contextmanager
-    def get_session(self) -> typing.Generator[Session, None, None]:
+    def get_session(self) -> typing.Generator[scoped_session, None, None]:
         session = self.Session
         try:
             yield session
@@ -62,7 +61,7 @@ class Db:
             logging.error(f"Unexpected error occurred: {e}")
             raise
 
-    def execute_orm_query(self, query: Callable[[sessionmaker], Any]) -> None:
+    def execute_orm_query(self, query: Callable[[scoped_session], Any]) -> typing.Any:
         """
         Executes an ORM query function that takes a session as an argument.
         """
@@ -86,21 +85,21 @@ class Db:
         except Exception as e:
             logging.error(f"Error during closing resources: {e}")
 
-    def create_all_tables(self) -> None:
+    def create_all_tables(self, metadata: MetaData) -> None:
         try:
             # Create all tables in the database
             logging.info("Creating all tables...")
-            base_model.Base.metadata.create_all(bind=self.engine)
+            metadata.create_all(bind=self.engine)
         except Exception as e:
             # Handle any exceptions or errors that occur during the connection test
             logging.error(f"Error while creating tables: {e}")
             raise Exception
 
-    def drop_all_tables(self) -> None:
+    def drop_all_tables(self, metadata: MetaData) -> None:
         try:
-            if base_model.Base.metadata.tables:
+            if metadata.tables:
                 logging.info("Dropping all tables...")
-                base_model.Base.metadata.drop_all(bind=self.engine)
+                metadata.drop_all(bind=self.engine)
         except Exception as e:
             # Handle any exceptions or errors that occur during the connection test
             logging.error(f"Error while dropping tables: {e}")

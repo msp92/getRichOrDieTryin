@@ -1,6 +1,6 @@
 import logging
 from time import sleep
-from typing import Any
+from typing import Union
 
 from requests import Response
 from sqlalchemy import func
@@ -13,14 +13,14 @@ from config.entity_names import (
 from config.vars import SLEEP_TIME
 from models.data.fixtures import Fixture
 from models.data.main import Season
-from services.api_fetcher import APIFetcher
+from services.api_fetcher import ApiFetcher
 from services.db import Db
 
 db = Db()
 
 
-class StatsFetcher(APIFetcher):
-    def get_stats(self, **kwargs: dict[str, Any]) -> Response | None:
+class StatsFetcher(ApiFetcher):
+    def get_stats(self, **kwargs: dict[str, Union[int, str]]) -> Response | None:
         return self.fetch_data(FIXTURE_STATS_API_ENDPOINT, **kwargs)
 
     @staticmethod
@@ -53,7 +53,7 @@ class StatsFetcher(APIFetcher):
                 logging.error(f"Connection Error: {e}")
                 raise Exception
 
-    def pull_stats_by_dates(self, dates_to_pull: list[str] | None) -> None:
+    def pull_stats_by_dates(self, dates_to_pull: list[str]) -> None:
         fixtures_to_pull = self.get_list_of_fixtures_with_stats_by_dates(dates_to_pull)
         if not fixtures_to_pull:
             logging.info("No fixtures to update.")

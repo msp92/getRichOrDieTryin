@@ -1,19 +1,19 @@
-from time import sleep
-from typing import Any
-
 from requests import Response
+from time import sleep
+from typing import Union
 
 from config.entity_names import COACHES_DIR, COACHES_API_ENDPOINT
 from config.vars import SLEEP_TIME
-from models.data.main import Team
-from services.api_fetcher import APIFetcher
+from services.api_fetcher import ApiFetcher
 
 
-class CoachesFetcher(APIFetcher):
-    def get_coaches(self, **kwargs: dict[str, Any]) -> Response | None:
+class CoachesFetcher(ApiFetcher):
+    def get_coaches(self, **kwargs: dict[str, Union[int, str]]) -> Response | None:
         return self.fetch_data("couchs", **kwargs)
 
     def pull_coaches_for_all_teams(self) -> None:
+        from models.data.main import Team
+
         teams_df = Team.get_df_from_table()
         for team_id in teams_df["team_id"]:
             endpoint = f"{COACHES_API_ENDPOINT}?team={team_id[0]}"

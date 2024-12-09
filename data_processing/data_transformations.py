@@ -1,14 +1,9 @@
 import csv
-
 import numpy as np
 import pandas as pd
 
 from config.entity_names import REFEREES_DIR
 from config.vars import DATA_DIR
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 
 def create_referees_lkp_dict_from_csv(filename: str) -> dict[str, str]:

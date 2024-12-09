@@ -1,12 +1,11 @@
-from typing import Any
-
+from typing import Union
 
 from config.entity_names import LEAGUES_API_ENDPOINT, LEAGUES_DIR
-from services.api_fetcher import APIFetcher
+from services.api_fetcher import ApiFetcher
 
 
-class LeagueFetcher(APIFetcher):
-    def fetch_all_leagues(self, **kwargs: dict[str, Any]) -> None:
+class LeagueFetcher(ApiFetcher):
+    def fetch_all_leagues(self, **kwargs: dict[str, Union[int, str]]) -> None:
         leagues_data = self.fetch_data(LEAGUES_API_ENDPOINT, **kwargs)
         # Check if teams_data is not empty
         if leagues_data:

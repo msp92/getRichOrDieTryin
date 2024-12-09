@@ -4,7 +4,7 @@ from time import sleep
 from config.entity_names import TEAMS_DIR, TEAMS_API_ENDPOINT
 from config.vars import SLEEP_TIME
 from models.data.main import Country
-from services.api_fetcher import APIFetcher
+from services.api_fetcher import ApiFetcher
 from services.db import Db
 
 db = Db()
@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 
 
-class TeamFetcher(APIFetcher):
+class TeamFetcher(ApiFetcher):
     def fetch_all_teams(self) -> None:
         with db.get_session() as session:
             try:

@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass
 import datetime as dt
 from time import sleep
-from typing import Optional, Any
+from typing import Optional, Union
 
 from requests import Response
 
@@ -14,7 +14,7 @@ from config.entity_names import (
 )
 from config.vars import SLEEP_TIME
 from models.data.main import League, Season
-from services.api_fetcher import APIFetcher
+from services.api_fetcher import ApiFetcher
 from services.db import Db
 
 db = Db()
@@ -27,7 +27,7 @@ class FixtureParams:
     limit: Optional[int] = None
 
 
-class FixtureFetcher(APIFetcher):
+class FixtureFetcher(ApiFetcher):
     def __init__(self, config: ApiConfig) -> None:  # noqa: F821
         # Call the parent class (ApiFetcher) initializer with the config
         super().__init__(config)
@@ -38,7 +38,7 @@ class FixtureFetcher(APIFetcher):
         league: Optional[str] = None,
         season: Optional[str] = None,
         status: Optional[str] = None,
-        **kwargs: dict[str, Any],
+        **kwargs: dict[str, Union[int, str]],
     ) -> Response | None:
         return self.fetch_data(FIXTURES_API_ENDPOINT, **kwargs)
 
@@ -104,11 +104,13 @@ class FixtureFetcher(APIFetcher):
         """
         with db.get_session() as session:
             try:
-                league_id, league_name = (
-                    session.query(League.league_id, League.name)
+                leagues = (
+                    session.query(League.league_id, League.league_name)
                     .filter(League.league_id == league_id_to_pull)
                     .first()
                 )
+                if leagues:
+                    league_id, league_name = leagues
                 season_years = (
                     session.query(Season.year)
                     .filter(Season.league_id == league_id_to_pull)
@@ -151,11 +153,13 @@ class FixtureFetcher(APIFetcher):
         """
         with db.get_session() as session:
             try:
-                league_id, league_name = (
-                    session.query(League.league_id, League.name)
+                leagues = (
+                    session.query(League.league_id, League.league_name)
                     .filter(League.league_id == league_id_to_pull)
                     .first()
                 )
+                if leagues:
+                    league_id, league_name = leagues
                 logging.info(
                     f"Pulling fixtures for {league_name}, season: {season_id_to_pull}..."
                 )

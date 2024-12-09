@@ -1,9 +1,9 @@
 import logging
-from time import sleep
-from typing import Any
 
 from requests import Response
+from time import sleep
 from sqlalchemy import and_, func
+from typing import Union
 
 from config.entity_names import (
     FIXTURE_PLAYER_STATS_API_ENDPOINT,
@@ -13,14 +13,14 @@ from config.entity_names import (
 from config.vars import SLEEP_TIME
 from models.data.fixtures import Fixture
 from models.data.main import Season
-from services.api_fetcher import APIFetcher
+from services.api_fetcher import ApiFetcher
 from services.db import Db
 
 db = Db()
 
 
-class PlayerStatsFetcher(APIFetcher):
-    def get_player_stats(self, **kwargs: dict[str, Any]) -> Response | None:
+class PlayerStatsFetcher(ApiFetcher):
+    def get_player_stats(self, **kwargs: dict[str, Union[int, str]]) -> Response | None:
         return self.fetch_data(FIXTURE_PLAYER_STATS_API_ENDPOINT, **kwargs)
 
     @staticmethod
@@ -53,7 +53,7 @@ class PlayerStatsFetcher(APIFetcher):
                 logging.error(f"Connection Error: {e}")
                 raise Exception
 
-    def pull_player_stats_by_dates(self, dates_to_pull: list[str] | None) -> None:
+    def pull_player_stats_by_dates(self, dates_to_pull: list[str]) -> None:
         fixtures_to_pull = self.get_list_of_fixtures_with_player_stats_by_dates(
             dates_to_pull
         )

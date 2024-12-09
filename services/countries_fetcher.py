@@ -1,12 +1,11 @@
-from typing import Any
-
+from typing import Union
 
 from config.entity_names import COUNTRIES_API_ENDPOINT, COUNTRIES_DIR
-from services.api_fetcher import APIFetcher
+from services.api_fetcher import ApiFetcher
 
 
-class CountryFetcher(APIFetcher):
-    def fetch_all_countries(self, **kwargs: dict[str, Any]) -> None:
+class CountryFetcher(ApiFetcher):
+    def fetch_all_countries(self, **kwargs: dict[str, Union[int, str]]) -> None:
         countries_data = self.fetch_data(COUNTRIES_API_ENDPOINT, **kwargs)
         # Check if teams_data is not empty
         if countries_data:

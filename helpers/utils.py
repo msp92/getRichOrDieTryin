@@ -14,10 +14,6 @@ from config.entity_names import (
 )
 from config.vars import DATA_DIR, ROOT_DIR
 
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 
 def get_df_from_json(filename: str, sub_dir: str) -> pd.DataFrame:
@@ -98,8 +94,8 @@ def utf8_to_ascii(text: str) -> str:
     return ascii_text
 
 
-def safe_str_to_int_cast(value: str):
+def safe_str_to_int_cast(value: str) -> int | None:
     try:
         return int(value) if value is not None else None
-    except ValueError:
-        return value  # Return original if it's not a valid integer string
+    except ValueError as e:
+        raise e

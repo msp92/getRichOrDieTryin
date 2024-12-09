@@ -1,17 +1,12 @@
 from sqlalchemy import Column, Integer, String, Date, DateTime
 
+from config.entity_names import ANALYTICS_BREAKS_SCHEMA_NAME
 from models.base import Base
-from services.db import Db
-
-db = Db()
-
-# Specify the schema
-SCHEMA_NAME = "analytics_breaks"
 
 
 class BreaksTeamStats(Base):
     __tablename__ = "breaks_team_stats"
-    __table_args__ = {"schema": SCHEMA_NAME}
+    __table_args__ = {"schema": ANALYTICS_BREAKS_SCHEMA_NAME}
     __mapper_args__ = {"concrete": True}
 
     team_id = Column(Integer, primary_key=True)

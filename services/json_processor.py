@@ -1,9 +1,10 @@
 import logging
-import time
 import pandas as pd
+import time
+
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from typing import List
+from typing import List, Union, Callable
 
 from data_processing.data_processing import (
     load_all_files_paths_from_data_directory,
@@ -14,13 +15,14 @@ logging.basicConfig(
 )
 
 
-# TODO: replace daily_refresh logic with below method
-# NOTE: ensure that it will work wherever executed
-
-
-class JSONProcessor:
+class JsonProcessor:
     def __init__(
-        self, entity: str, parse_method, upsert_method, input_dir: str, chunk_size: int
+        self,
+        entity: str,
+        parse_method: Callable[[Union[None, str]], pd.DataFrame],
+        upsert_method: Callable[[pd.DataFrame], None],
+        input_dir: str,
+        chunk_size: int,
     ):
         self.entity = entity
         self.files = load_all_files_paths_from_data_directory(entity)
@@ -96,7 +98,9 @@ class JSONProcessor:
                 else:
                     logging.warning("Received an empty DataFrame from a chunk")
 
-    def _process_chunk_wrapper(self, chunk_args) -> pd.DataFrame:
+    def _process_chunk_wrapper(
+        self, chunk_args: tuple[list[Path], int, int]
+    ) -> pd.DataFrame:
         # Unpack the arguments
         chunk, chunk_index, total_chunks = chunk_args
         return self.process_files_chunk(chunk, chunk_index, total_chunks)

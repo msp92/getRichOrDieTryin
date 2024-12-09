@@ -1,17 +1,12 @@
 from sqlalchemy import Column, Integer, String, DateTime, Numeric
 
-from models.data.fixtures.fixtures import Fixture
-from services.db import Db
-
-db = Db()
-
-# Specify the schema
-SCHEMA_NAME = "analytics_breaks"
+from config.entity_names import ANALYTICS_BREAKS_SCHEMA_NAME
+from models.data.fixtures import Fixture
 
 
 class BreaksWithFactors(Fixture):
     __tablename__ = "breaks_with_factors"
-    __table_args__ = {"schema": SCHEMA_NAME}
+    __table_args__ = {"schema": ANALYTICS_BREAKS_SCHEMA_NAME}
     __mapper_args__ = {"concrete": True}
 
     fixture_id = Column(Integer, primary_key=True)
