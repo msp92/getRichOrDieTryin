@@ -11,7 +11,12 @@ def main() -> None:
     try:
         pipeline = MainPipeline(MAIN_ENTITIES_CONFIG)
         pipeline.run_daily_refresh(
-            entities=["countries", "leagues", "seasons", "teams"]
+            entities=[
+                # "countries",
+                "leagues",
+                "seasons",
+                "teams",
+            ]
         )
     finally:
         db_instance.close()

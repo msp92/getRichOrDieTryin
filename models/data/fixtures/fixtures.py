@@ -10,6 +10,7 @@ from sqlalchemy import (
     func,
     asc,
     DateTime,
+    text,
 )
 from sqlalchemy.exc import InvalidRequestError
 from sqlalchemy.orm import relationship
@@ -48,7 +49,6 @@ class Fixture(Base):
     player_stats = relationship("FixturePlayerStat", back_populates="fixture")
     events = relationship("FixtureEvent", back_populates="fixture")
 
-
     home_team = relationship(
         "Team", foreign_keys=[home_team_id], back_populates="home_team"
     )
@@ -59,8 +59,8 @@ class Fixture(Base):
     @staticmethod
     def get_dates_to_update() -> list[str]:
         curr_date = dt.date.today()
-        start_date = curr_date - dt.timedelta(days=2)
-        end_date = curr_date + dt.timedelta(days=3)
+        start_date = curr_date - dt.timedelta(days=1)
+        end_date = curr_date + dt.timedelta(days=5)
 
         # Generate list of dates as strings
         date_range = [
@@ -235,7 +235,6 @@ class Fixture(Base):
             & (cls.goals_home > cls.goals_away)
             & (cls.status == "FT")
         )
-
         with cls.db.get_session() as session:
             try:
                 overcome_games_df = pd.read_sql_query(
@@ -249,4 +248,38 @@ class Fixture(Base):
                 raise InvalidRequestError(
                     f"Error while reading {cls.__name__} data: {e}"
                 )
-        return overcome_games_df.drop(columns=["update_date"])
+        return overcome_games_df  # .drop(columns=["update_date"])
+
+    @classmethod
+    def get_upcoming_fixtures(cls) -> pd.DataFrame:
+        with cls.db.get_session() as session:
+            try:
+                upcoming_fixtures_df = pd.read_sql_query(
+                    session.query(cls)
+                    .filter(
+                        text(
+                            f"date > '{dt.datetime.now()}' and date < '{dt.datetime.now()+dt.timedelta(days=5)}'"
+                        )
+                    )
+                    .order_by(asc(cls.date))
+                    .statement,
+                    cls.db.engine,
+                ).drop(
+                    columns=[
+                        "league_id",
+                        "season_year",
+                        "status",
+                        "home_team_id",
+                        "away_team_id",
+                        "goals_home",
+                        "goals_away",
+                        "goals_home_ht",
+                        "goals_away_ht",
+                        "update_date",
+                    ]
+                )
+            except InvalidRequestError as e:
+                raise InvalidRequestError(
+                    f"Error while reading {cls.__name__} data: {e}"
+                )
+        return upcoming_fixtures_df

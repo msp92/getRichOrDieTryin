@@ -1,4 +1,6 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime
+import pandas as pd
+from sqlalchemy import Column, Integer, String, Date, DateTime, asc
+from sqlalchemy.exc import InvalidRequestError
 
 from config.entity_names import ANALYTICS_BREAKS_SCHEMA_NAME
 from models.base import Base
@@ -102,3 +104,17 @@ class BreaksTeamStats(Base):
     rounds_27_39 = Column("rounds_27-39", Integer)
     rounds_40_60 = Column("rounds_40-60", Integer)
     update_date = Column(DateTime)
+
+    @classmethod
+    def get_all(cls):
+        with cls.db.get_session() as session:
+            try:
+                breaks_team_stats_df = pd.read_sql_query(
+                    session.query(cls).order_by(asc(cls.team_id)).statement,
+                    cls.db.engine,
+                )
+            except InvalidRequestError as e:
+                raise InvalidRequestError(
+                    f"Error while reading {cls.__name__} data: {e}"
+                )
+        return breaks_team_stats_df

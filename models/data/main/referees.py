@@ -93,25 +93,25 @@ class Referee:
                     f"{idx}. '{name}' (similarity: {similarity:.2f}) -> gold_name: '{gold_name}'"
                 )
 
-            # Ask the user to select a match by pressing 1/2/3/etc.
-            choice = input(
-                f"Select mapping for '{referee_name}' (or press Enter to skip): "
-            ).strip()
-
-            if choice.isdigit():
-                selected_idx = int(choice) - 1  # Convert input to zero-based index
-                if 0 <= selected_idx < len(similar_names):
-                    name, _ = similar_names[selected_idx]
-                    # Find the gold_name corresponding to the selected name
-                    selected_gold_name: str = mapping_df[
-                        mapping_df["original_name"] == name
-                    ].iloc[0]["gold_name"]
-                    # Add the new mapping to the list
-                    append_data_to_csv(
-                        [referee_name, selected_gold_name],
-                        f"{ROOT_DIR}/{DATA_DIR}/{REFEREES_DIR}/mapping_referees.csv",
-                    )
-                    return selected_gold_name
+            # # Ask the user to select a match by pressing 1/2/3/etc.
+            # choice = input(
+            #     f"Select mapping for '{referee_name}' (or press Enter to skip): "
+            # ).strip()
+            #
+            # if choice.isdigit():
+            #     selected_idx = int(choice) - 1  # Convert input to zero-based index
+            #     if 0 <= selected_idx < len(similar_names):
+            #         name, _ = similar_names[selected_idx]
+            #         # Find the gold_name corresponding to the selected name
+            #         selected_gold_name: str = mapping_df[
+            #             mapping_df["original_name"] == name
+            #         ].iloc[0]["gold_name"]
+            #         # Add the new mapping to the list
+            #         append_data_to_csv(
+            #             [referee_name, selected_gold_name],
+            #             f"{ROOT_DIR}/{DATA_DIR}/{REFEREES_DIR}/mapping_referees.csv",
+            #         )
+            #         return selected_gold_name
             # Add the new mapping to the list
             append_data_to_csv(
                 referee_name, f"{ROOT_DIR}/{DATA_DIR}/{REFEREES_DIR}/new_referees.csv"

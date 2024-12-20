@@ -4,7 +4,6 @@ from config.entity_names import ANALYTICS_FIXTURES_SCHEMA_NAME
 from models.data.fixtures import Fixture
 
 
-
 class FixturesWithFactors(Fixture):
     __tablename__ = "fixtures_with_factors"
     __table_args__ = {"schema": ANALYTICS_FIXTURES_SCHEMA_NAME}

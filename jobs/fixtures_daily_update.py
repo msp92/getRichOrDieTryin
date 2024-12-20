@@ -12,10 +12,12 @@ def main() -> None:
         pipeline = FixturesPipeline(FIXTURE_ENTITIES_CONFIG)
         pipeline.run_daily_refresh(
             entities=[
+                # TODO: turn off manual referee mapping before the vacation !!!!!
+                # TODO: execute weekly update first each day
                 "fixtures",
-                "fixture_stats",
-                "fixture_player_stats",
-                "fixture_events",
+                # "fixture_stats",
+                # "fixture_player_stats",
+                # "fixture_events",
             ]
         )
     finally:

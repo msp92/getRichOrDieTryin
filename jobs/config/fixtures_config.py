@@ -11,13 +11,9 @@ from data_processing.data_parsing import (
     parse_fixture_player_stats_file,
     parse_fixture_events_file,
 )
-from models.data.fixtures import (
-    Fixture, FixtureStat, FixturePlayerStat, FixtureEvent
-)
+from models.data.fixtures import Fixture, FixtureStat, FixturePlayerStat, FixtureEvent
 from models.data.main import Team
-from services import (
-    EventsFetcher, FixtureFetcher, PlayerStatsFetcher, StatsFetcher
-)
+from services import EventsFetcher, FixtureFetcher, PlayerStatsFetcher, StatsFetcher
 
 FIXTURE_ENTITIES_CONFIG = {
     "fixtures": {
@@ -40,7 +36,9 @@ FIXTURE_ENTITIES_CONFIG = {
     },
     "fixture_player_stats": {
         "dates_to_update_method": FixturePlayerStat.get_dates_to_update,
-        "api_pull_method": PlayerStatsFetcher(config=ApiConfig()).pull_player_stats_by_dates,
+        "api_pull_method": PlayerStatsFetcher(
+            config=ApiConfig()
+        ).pull_player_stats_by_dates,
         "parse_method": parse_fixture_player_stats_file,
         "upsert_method": FixturePlayerStat.upsert,
         "dependencies": [],

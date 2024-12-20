@@ -21,7 +21,7 @@ def main():
             entities=[
                 "breaks",
                 "breaks_team_stats",
-                "breaks_team_stats_share",
+                # "breaks_team_stats_share",
             ]
         )
     finally:

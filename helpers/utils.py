@@ -15,7 +15,6 @@ from config.entity_names import (
 from config.vars import DATA_DIR, ROOT_DIR
 
 
-
 def get_df_from_json(filename: str, sub_dir: str) -> pd.DataFrame:
     """
     Read JSON data from a file and convert it to a pandas DataFrame.

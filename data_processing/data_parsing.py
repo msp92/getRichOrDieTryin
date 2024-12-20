@@ -1,8 +1,5 @@
-import logging
-import sys
-from pathlib import Path
-
 import datetime as dt
+import logging
 import numpy as np
 import pandas as pd
 
@@ -18,19 +15,11 @@ from config.entity_names import (
 )
 from data_processing.data_processing import load_all_files_from_data_directory
 from data_processing.data_transformations import adjust_date_range_overlaps
-from models.data.main.coaches import Coach
-from models.data.main.countries import Country
-from models.data.fixtures.fixtures import Fixture
-from models.data.main.leagues import League
-from models.data.main.referees import Referee
-from models.data.main.seasons import Season
-from models.data.main.teams import Team
+
 from helpers.utils import get_df_from_json, utf8_to_ascii
 import warnings
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-
-sys.path.append(str(Path(__file__).resolve().parent.parent))
 
 
 def parse_countries() -> pd.DataFrame:
@@ -42,6 +31,8 @@ def parse_countries() -> pd.DataFrame:
 
 
 def parse_leagues() -> pd.DataFrame:
+    from models.data.main import Country, League
+
     logging.info("** Parsing leagues data **")
     country_df = Country.get_df_from_table()
     df = get_df_from_json(LEAGUES_FILE_NAME, LEAGUES_DIR).rename(
@@ -62,6 +53,8 @@ def parse_leagues() -> pd.DataFrame:
 
 
 def parse_teams() -> pd.DataFrame:
+    from models.data.main import Country, Team
+
     logging.info("** Parsing teams data **")
     country_df = Country.get_df_from_table()
     df = load_all_files_from_data_directory(TEAMS_DIR)
@@ -85,6 +78,8 @@ def parse_teams() -> pd.DataFrame:
 
 
 def parse_seasons() -> pd.DataFrame:
+    from models.data.main import Country, Season
+
     logging.info("** Parsing seasons data **")
     leagues_df = get_df_from_json(LEAGUES_FILE_NAME, LEAGUES_DIR)
     country_df = Country.get_df_from_table()
@@ -132,6 +127,9 @@ def parse_seasons() -> pd.DataFrame:
 
 
 def parse_fixtures() -> pd.DataFrame:
+    from models.data.main import Referee
+    from models.data.fixtures import Fixture
+
     logging.info("** Parsing fixtures data **")
     df_fixtures = load_all_files_from_data_directory(f"{FIXTURES_DIR}")
 
@@ -190,6 +188,8 @@ def parse_fixtures() -> pd.DataFrame:
 
 
 def parse_coaches() -> pd.DataFrame:
+    from models.data.main import Coach
+
     logging.info("** Parsing coaches data **")
     raw_df = load_all_files_from_data_directory("coaches")
     coaches_df = pd.DataFrame(

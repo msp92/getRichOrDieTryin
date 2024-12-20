@@ -10,12 +10,11 @@ logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-DAILY_SCHEDULE_DATE = "00:00"
-WEEKLY_SCHEDULE_DATE = "01:00"
+DAILY_SCHEDULE_DATE = "23:00"
 
 
 def run_job(job_name: str) -> None:
-    logging.info(f"Running {job_name} job...")
+    logging.info(f"* * * * RUNNING {job_name.upper()} JOB * * * *")
     script_path = os.path.join(os.path.dirname(__file__), f"{job_name}.py")
     venv_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".venv")
 
@@ -31,8 +30,17 @@ def run_job(job_name: str) -> None:
         )
 
 
-schedule.every().day.at(DAILY_SCHEDULE_DATE).do(run_job("daily_refresh"))
-schedule.every().day.at(WEEKLY_SCHEDULE_DATE).do(run_job("weekly_refresh"))
+logging.info("* * * * SCHEDULER * * * *")
+logging.info(f"Next job will run at {DAILY_SCHEDULE_DATE}")
+schedule.every().day.at(DAILY_SCHEDULE_DATE).do(lambda: run_job("main_weekly_update"))
+schedule.every().day.at(DAILY_SCHEDULE_DATE).do(
+    lambda: run_job("fixtures_daily_update")
+)
+schedule.every().day.at(DAILY_SCHEDULE_DATE).do(
+    lambda: run_job("analytics_breaks_daily_update")
+)
+schedule.every().day.at(DAILY_SCHEDULE_DATE).do(lambda: run_job("export_daily_update"))
+
 
 while True:
     schedule.run_pending()
