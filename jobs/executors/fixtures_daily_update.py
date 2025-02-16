@@ -1,5 +1,5 @@
 from jobs.config.fixtures_config import FIXTURE_ENTITIES_CONFIG
-from jobs.fixtures_pipeline import FixturesPipeline
+from jobs.pipelines.fixtures_pipeline import FixturesPipeline
 from models.base import Base, BaseMixin
 from services.db import Db
 
@@ -15,9 +15,9 @@ def main() -> None:
                 # TODO: turn off manual referee mapping before the vacation !!!!!
                 # TODO: execute weekly update first each day
                 "fixtures",
-                # "fixture_stats",
-                # "fixture_player_stats",
-                # "fixture_events",
+                "fixture_stats",
+                "fixture_player_stats",
+                "fixture_events",
             ]
         )
     finally:

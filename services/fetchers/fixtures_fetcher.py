@@ -13,8 +13,8 @@ from config.entity_names import (
     FIXTURES_DIR,
 )
 from config.vars import SLEEP_TIME
-from models.data.main import League, Season
-from services.api_fetcher import ApiFetcher
+from models.data_warehouse.main import League, Season
+from services.fetchers.api_fetcher import ApiFetcher
 from services.db import Db
 
 db = Db()

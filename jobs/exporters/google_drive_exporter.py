@@ -11,7 +11,7 @@ from sqlalchemy import text
 from config.vars import ROOT_DIR, DATA_DIR, SCRIPTS_DIR
 
 
-class DataExporter:
+class GoogleDriveExporter:
     def __init__(self, db_engine, google_drive_credentials, export_dir="exports"):
         """
         :param db_connection: Obiekt połączenia do bazy danych.

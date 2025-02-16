@@ -3,8 +3,8 @@ from time import sleep
 
 from config.entity_names import TEAMS_DIR, TEAMS_API_ENDPOINT
 from config.vars import SLEEP_TIME
-from models.data.main import Country
-from services.api_fetcher import ApiFetcher
+from models.data_warehouse.main import Country
+from services.fetchers.api_fetcher import ApiFetcher
 from services.db import Db
 
 db = Db()

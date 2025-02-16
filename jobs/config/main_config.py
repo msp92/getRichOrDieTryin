@@ -5,7 +5,7 @@ from data_processing.data_parsing import (
     parse_teams,
     parse_coaches,
 )
-from models.data.main import Coach, Team, Season, League
+from models.data_warehouse.main import Coach, Team, Season, League
 from services import LeagueFetcher, TeamFetcher, CoachesFetcher
 
 MAIN_ENTITIES_CONFIG = {

@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, DateTime, Numeric
 
 from config.entity_names import ANALYTICS_FIXTURES_SCHEMA_NAME
-from models.data.fixtures import Fixture
+from models.data_warehouse.fixtures import Fixture
 
 
 class FixturesWithFactors(Fixture):

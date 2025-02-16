@@ -5,7 +5,7 @@ from typing import Any
 from config.entity_names import PROCESSED_DIR
 from config.vars import ROOT_DIR, DATA_DIR
 from helpers.utils import move_json_files_between_directories
-from services.json_processor import JsonProcessor
+from data_processing.json_processor import JsonProcessor
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"

@@ -6,8 +6,8 @@ from sqlalchemy.orm import relationship
 
 from config.entity_names import TEAMS_TABLE_NAME, DW_MAIN_SCHEMA_NAME
 from models.base import Base
-from models.data.main import Country
-from models.data.fixtures import Fixture
+from models.data_warehouse.main import Country
+from models.data_warehouse.fixtures import Fixture
 
 
 class Team(Base):

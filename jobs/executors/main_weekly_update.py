@@ -1,5 +1,5 @@
 from jobs.config.main_config import MAIN_ENTITIES_CONFIG
-from jobs.main_pipeline import MainPipeline
+from jobs.pipelines.main_pipeline import MainPipeline
 from models.base import Base, BaseMixin
 from services.db import Db
 

@@ -2,7 +2,7 @@ from data_processing.data_aggregations import (
     aggregate_breaks_team_stats_from_raw,
 )
 from models.analytics.breaks import Break, BreaksTeamStats
-from models.data.fixtures import Fixture
+from models.data_warehouse.fixtures import Fixture
 
 ANALYTICS_BREAKS_ENTITIES_CONFIG = {
     "breaks": {

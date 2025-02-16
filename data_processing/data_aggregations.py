@@ -2,7 +2,7 @@ import logging
 import pandas as pd
 
 from config.vars import DATA_DIR
-from models.data.main import Team
+from models.data_warehouse.main import Team
 from services.db import Db
 
 db = Db()

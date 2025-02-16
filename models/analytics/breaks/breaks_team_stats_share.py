@@ -5,7 +5,7 @@ from decimal import Decimal
 from sqlalchemy import Column, Integer, String, Date, Numeric, or_
 
 from config.entity_names import ANALYTICS_BREAKS_SCHEMA_NAME
-from models.data.fixtures import Fixture
+from models.data_warehouse.fixtures import Fixture
 from models.base import Base
 
 

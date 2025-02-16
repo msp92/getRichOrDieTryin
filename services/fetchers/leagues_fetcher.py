@@ -1,7 +1,7 @@
 from typing import Union
 
 from config.entity_names import LEAGUES_API_ENDPOINT, LEAGUES_DIR
-from services.api_fetcher import ApiFetcher
+from services.fetchers.api_fetcher import ApiFetcher
 
 
 class LeagueFetcher(ApiFetcher):

@@ -11,8 +11,8 @@ from data_processing.data_parsing import (
     parse_fixture_player_stats_file,
     parse_fixture_events_file,
 )
-from models.data.fixtures import Fixture, FixtureStat, FixturePlayerStat, FixtureEvent
-from models.data.main import Team
+from models.data_warehouse.fixtures import Fixture, FixtureStat, FixturePlayerStat, FixtureEvent
+from models.data_warehouse.main import Team
 from services import EventsFetcher, FixtureFetcher, PlayerStatsFetcher, StatsFetcher
 
 FIXTURE_ENTITIES_CONFIG = {

@@ -4,7 +4,7 @@ from typing import Union
 
 from config.entity_names import COACHES_DIR, COACHES_API_ENDPOINT
 from config.vars import SLEEP_TIME
-from services.api_fetcher import ApiFetcher
+from services.fetchers.api_fetcher import ApiFetcher
 
 
 class CoachesFetcher(ApiFetcher):
@@ -12,7 +12,7 @@ class CoachesFetcher(ApiFetcher):
         return self.fetch_data("couchs", **kwargs)
 
     def pull_coaches_for_all_teams(self) -> None:
-        from models.data.main import Team
+        from models.data_warehouse.main import Team
 
         teams_df = Team.get_df_from_table()
         for team_id in teams_df["team_id"]:

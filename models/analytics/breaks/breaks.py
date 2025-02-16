@@ -5,7 +5,7 @@ from sqlalchemy import Column, Integer, String, DateTime, ForeignKey
 from sqlalchemy.exc import OperationalError
 
 from config.entity_names import ANALYTICS_BREAKS_SCHEMA_NAME
-from models.data.fixtures import Fixture
+from models.data_warehouse.fixtures import Fixture
 
 
 class Break(Fixture):

@@ -1,7 +1,7 @@
 from typing import Union
 
 from config.entity_names import COUNTRIES_API_ENDPOINT, COUNTRIES_DIR
-from services.api_fetcher import ApiFetcher
+from services.fetchers.api_fetcher import ApiFetcher
 
 
 class CountryFetcher(ApiFetcher):

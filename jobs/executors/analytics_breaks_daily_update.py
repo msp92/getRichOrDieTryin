@@ -2,7 +2,7 @@ import logging
 
 from jobs.config.analytics_breaks_config import ANALYTICS_BREAKS_ENTITIES_CONFIG
 
-from jobs.analytics_breaks_pipeline import AnalyticsBreaksPipeline
+from jobs.pipelines.analytics_breaks_pipeline import AnalyticsBreaksPipeline
 from models.base import BaseMixin, Base
 from services import Db
 

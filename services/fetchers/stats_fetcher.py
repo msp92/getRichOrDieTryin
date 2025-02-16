@@ -11,9 +11,9 @@ from config.entity_names import (
     FIXTURE_STATS_DIR,
 )
 from config.vars import SLEEP_TIME
-from models.data.fixtures import Fixture
-from models.data.main import Season
-from services.api_fetcher import ApiFetcher
+from models.data_warehouse.fixtures import Fixture
+from models.data_warehouse.main import Season
+from services.fetchers.api_fetcher import ApiFetcher
 from services.db import Db
 
 db = Db()

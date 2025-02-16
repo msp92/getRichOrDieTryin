@@ -31,7 +31,7 @@ def parse_countries() -> pd.DataFrame:
 
 
 def parse_leagues() -> pd.DataFrame:
-    from models.data.main import Country, League
+    from models.data_warehouse.main import Country, League
 
     logging.info("** Parsing leagues data **")
     country_df = Country.get_df_from_table()
@@ -53,7 +53,7 @@ def parse_leagues() -> pd.DataFrame:
 
 
 def parse_teams() -> pd.DataFrame:
-    from models.data.main import Country, Team
+    from models.data_warehouse.main import Country, Team
 
     logging.info("** Parsing teams data **")
     country_df = Country.get_df_from_table()
@@ -78,7 +78,7 @@ def parse_teams() -> pd.DataFrame:
 
 
 def parse_seasons() -> pd.DataFrame:
-    from models.data.main import Country, Season
+    from models.data_warehouse.main import Country, Season
 
     logging.info("** Parsing seasons data **")
     leagues_df = get_df_from_json(LEAGUES_FILE_NAME, LEAGUES_DIR)
@@ -127,8 +127,8 @@ def parse_seasons() -> pd.DataFrame:
 
 
 def parse_fixtures() -> pd.DataFrame:
-    from models.data.main import Referee
-    from models.data.fixtures import Fixture
+    from models.data_warehouse.main import Referee
+    from models.data_warehouse.fixtures import Fixture
 
     logging.info("** Parsing fixtures data **")
     df_fixtures = load_all_files_from_data_directory(f"{FIXTURES_DIR}")
@@ -188,7 +188,7 @@ def parse_fixtures() -> pd.DataFrame:
 
 
 def parse_coaches() -> pd.DataFrame:
-    from models.data.main import Coach
+    from models.data_warehouse.main import Coach
 
     logging.info("** Parsing coaches data **")
     raw_df = load_all_files_from_data_directory("coaches")

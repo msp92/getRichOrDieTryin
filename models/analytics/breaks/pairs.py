@@ -6,7 +6,7 @@ from sqlalchemy import Column, Integer, String, Date, Sequence
 
 from config.entity_names import ANALYTICS_BREAKS_SCHEMA_NAME
 from config.vars import DATA_DIR
-from models.data.main import Team
+from models.data_warehouse.main import Team
 from models.base import Base
 
 
