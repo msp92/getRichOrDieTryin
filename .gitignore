@@ -121,6 +121,8 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
+.env.rds
 .venv
 env/
 venv/
@@ -166,7 +168,7 @@ cython_debug/
 #.idea/
 data/
 scripts/
-config/
 !/jobs/config
 .streamlit/secrets.toml
-TESTZ/
+Zplayground/
+/google_api_credentials.json
