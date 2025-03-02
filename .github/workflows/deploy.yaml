@@ -67,7 +67,7 @@ jobs:
 
           # Copy specific files and directories to EC2
           echo "Copying project files to EC2..."
-          scp -i key.pem google_api_credentials.json $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem google_credentials.json $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem pyproject.toml $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem docker-compose.yml $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem Dockerfile $EC2_USER@$EC2_HOST:$REMOTE_PATH/
