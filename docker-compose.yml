@@ -1,0 +1,16 @@
+services:
+  scheduler:
+    build: .
+    command: python -m scheduler.scheduler
+    environment:
+      - DOCKER_ENV=1
+    env_file:
+      - .env.rds
+
+  exporter:
+    build: .
+    command: python -m services.google_drive_exporter
+    environment:
+      - DOCKER_ENV=1
+    env_file:
+      - .env.rds
