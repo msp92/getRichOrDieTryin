@@ -95,7 +95,11 @@ jobs:
           scp -i key.pem -r scheduler $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem -r scripts $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem -r services $EC2_USER@$EC2_HOST:$REMOTE_PATH/
-
+          
+          echo "Copying completed."
+          # Debug: Check remote directory contents after copy
+          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "ls -l $REMOTE_PATH"
+          
           # Restart Docker Compose on EC2
           ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
             cd $REMOTE_PATH
