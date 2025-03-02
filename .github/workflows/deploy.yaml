@@ -90,7 +90,6 @@ jobs:
           scp -i key.pem -r config $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem -r data_processing $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem -r helpers $EC2_USER@$EC2_HOST:$REMOTE_PATH/
-          scp -i key.pem -r jobs $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem -r models $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem -r pipelines $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem -r scheduler $EC2_USER@$EC2_HOST:$REMOTE_PATH/
