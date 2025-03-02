@@ -1,17 +1,12 @@
 from sqlalchemy import Column, Integer, String, DateTime, Numeric
 
-from models.data.fixtures.fixtures import Fixture
-from services.db import Db
-
-db = Db()
-
-# Specify the schema
-SCHEMA_NAME = "analytics_fixtures"
+from config.entity_names import ANALYTICS_FIXTURES_SCHEMA_NAME
+from models.data_warehouse.fixtures import Fixture
 
 
 class FixturesWithFactors(Fixture):
     __tablename__ = "fixtures_with_factors"
-    __table_args__ = {"schema": SCHEMA_NAME}
+    __table_args__ = {"schema": ANALYTICS_FIXTURES_SCHEMA_NAME}
     __mapper_args__ = {"concrete": True}
 
     fixture_id = Column(Integer, primary_key=True)

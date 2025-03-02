@@ -1,22 +1,17 @@
-from decimal import Decimal
-
-import pandas as pd
 import datetime as dt
+import pandas as pd
+
+from decimal import Decimal
 from sqlalchemy import Column, Integer, String, Date, Numeric, or_
 
+from config.entity_names import ANALYTICS_BREAKS_SCHEMA_NAME
+from models.data_warehouse.fixtures import Fixture
 from models.base import Base
-from models.data.fixtures.fixtures import Fixture
-from services.db import Db
-
-db = Db()
-
-# Specify the schema
-SCHEMA_NAME = "analytics_breaks"
 
 
 class BreaksTeamStatsShares(Base):
     __tablename__ = "breaks_team_stats_shares"
-    __table_args__ = {"schema": SCHEMA_NAME}
+    __table_args__ = {"schema": ANALYTICS_BREAKS_SCHEMA_NAME}
     __mapper_args__ = {"concrete": True}
 
     team_id = Column(Integer, primary_key=True)
@@ -64,12 +59,12 @@ class BreaksTeamStatsShares(Base):
         round: int,
         referee: str,
     ) -> pd.DataFrame:
-        with db.get_session() as session:
+        with cls.db.get_session() as session:
             team_shares = pd.read_sql_query(
                 session.query(cls)
                 .filter(or_(cls.team_id == home_team_id, cls.team_id == away_team_id))
                 .statement,
-                db.engine,
+                cls.db.engine,
             )
 
         def calculate_home_away_factor(team_id: int) -> Decimal:
@@ -85,9 +80,9 @@ class BreaksTeamStatsShares(Base):
             fctr = factor.reset_index(drop=True)
 
             if len(fctr) < 1:
-                return 0.0
+                return Decimal(0.0)
 
-            return fctr[0]
+            return Decimal(fctr.iloc[0])
 
         def get_month_part_factor(team_id: int, date: dt.date) -> int:
             day = date.day
@@ -112,7 +107,7 @@ class BreaksTeamStatsShares(Base):
             if len(fctr) < 1:
                 return 0
 
-            return fctr[0]
+            return int(fctr.iloc[0])
 
         def get_month_factor(team_id: int, date: dt.date) -> int:
             month = date.month
@@ -139,7 +134,7 @@ class BreaksTeamStatsShares(Base):
             if len(fctr) < 1:
                 return 0
 
-            return fctr[0]
+            return int(fctr.iloc[0])
 
         def get_year_factor() -> int:
             return 0
@@ -166,7 +161,7 @@ class BreaksTeamStatsShares(Base):
             if len(fctr) < 1:
                 return 0
 
-            return fctr[0]
+            return int(fctr[0])
 
         def get_referee_factor(team_id: int, referee: str) -> int:
             return 0
@@ -206,14 +201,14 @@ class BreaksTeamStatsShares(Base):
     def get_breaks_with_factors(cls) -> pd.DataFrame:
         breaks_with_factors_df = pd.DataFrame()
         list_of_dfs = []
-        with db.get_session() as session:
+        with cls.db.get_session() as session:
             try:
                 # TODO: original value = breaks_df (not current_year_fixtures_df)
                 current_year_fixtures_df = pd.read_sql_query(
                     session.query(Fixture)
                     .filter(Fixture.date > "2024-01-01")
                     .statement,
-                    db.engine,
+                    cls.db.engine,
                 )
                 for idx, single_break in current_year_fixtures_df.iterrows():
                     break_with_factors_df = cls.get_breaks_teams_points_for_fixture(
@@ -231,7 +226,7 @@ class BreaksTeamStatsShares(Base):
                 # Get total breaks data for each team
                 total_breaks_per_team_df = pd.read_sql_query(
                     session.query(cls.team_id, cls.total).statement,
-                    db.engine,
+                    cls.db.engine,
                 )
 
                 fixtures_with_total_home_breaks_df = current_year_fixtures_df.merge(

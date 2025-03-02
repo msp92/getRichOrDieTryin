@@ -4,17 +4,15 @@ import pandas as pd
 from numpy import product
 from sqlalchemy import Column, Integer, String, Date, Sequence
 
-from config.vars import SOURCE_DIR
+from config.entity_names import ANALYTICS_BREAKS_SCHEMA_NAME
+from config.vars import DATA_DIR
+from models.data_warehouse.main import Team
 from models.base import Base
-from models.data.main import Team
-
-# Specify the schema
-SCHEMA_NAME = "analytics_breaks"
 
 
 class Pair(Base):
     __tablename__ = "pairs"
-    __table_args__ = {"schema": SCHEMA_NAME}
+    __table_args__ = {"schema": ANALYTICS_BREAKS_SCHEMA_NAME}
 
     pair_id = Column(Integer, Sequence("pair_id_seq", 1), primary_key=True)
     team_id_1 = Column(Integer, nullable=False)
@@ -26,8 +24,10 @@ class Pair(Base):
     last_game_date = Column(Date, nullable=False)
 
     @staticmethod
-    def search_overcome_pairs(df) -> None:
-        unique_team_ids = pd.unique(pd.concat([df["home_team_id"], df["away_team_id"]]))
+    def search_coincidental_breaks_by_team_id(breaks_df: pd.DataFrame) -> None:
+        unique_team_ids = pd.unique(
+            pd.concat([breaks_df["home_team_id"], breaks_df["away_team_id"]])
+        )
         unique_team_ids_df = pd.DataFrame({"team_id": unique_team_ids})
         teams_df = Team.get_df_from_table()
 
@@ -41,28 +41,30 @@ class Pair(Base):
                 f"[FIRST TEAM] Index: {i}/{len(unique_teams_df)}, team: {first_team_row['team_name']} ({first_team_row['country_name']})"
             )
             # Filter the overcome games for the current 'team_id'
-            first_team_df = df[
-                (df["home_team_id"] == first_team_row["team_id"])
-                | (df["away_team_id"] == first_team_row["team_id"])
+            first_team_df = breaks_df[
+                (breaks_df["home_team_id"] == first_team_row["team_id"])
+                | (breaks_df["away_team_id"] == first_team_row["team_id"])
             ]
+            # Check if the team has at least two games
+            if len(first_team_df) < 5:
+                continue
             # Prepare the data for calculations: convert pandas object => datetime => UNIX timestamp
             first_team_df = first_team_df.copy()  # Avoid SettingWithCopyWarning
             first_team_df.loc[:, "date_numeric"] = (
                 pd.to_datetime(first_team_df["date"]).astype("int64") // 10**9
             )  # Convert nanoseconds to seconds
 
-            # Check if the team has at least two games
-            if len(first_team_df) < 5:
-                continue
-
             logging.info("Searching for second team...")
             # Iterate over the overcome games of the current team
             for j, second_team_row in unique_teams_df.iterrows():
                 if j > i:
-                    second_team_df = df[
-                        (df["home_team_id"] == second_team_row["team_id"])
-                        | (df["away_team_id"] == second_team_row["team_id"])
+                    second_team_df = breaks_df[
+                        (breaks_df["home_team_id"] == second_team_row["team_id"])
+                        | (breaks_df["away_team_id"] == second_team_row["team_id"])
                     ]
+                    # Check if the team has at least two overcome games
+                    if len(second_team_df) < 5:
+                        continue
                     # Prepare the data for calculations: convert pandas object => datetime => UNIX timestamp
                     second_team_df = (
                         second_team_df.copy()
@@ -70,10 +72,6 @@ class Pair(Base):
                     second_team_df.loc[:, "date_numeric"] = (
                         pd.to_datetime(second_team_df["date"]).astype("int64") // 10**9
                     )  # Convert nanoseconds to seconds
-
-                    # Check if the team has at least two overcome games
-                    if len(second_team_df) < 5:
-                        continue
 
                     # Prepare combinations of overcome games for both teams
                     combinations = list(
@@ -139,7 +137,7 @@ class Pair(Base):
                         # result_df.insert(0, "pair_id", pair_counter)
                         # pair_counter += 1
                         result_df.to_csv(
-                            f"{SOURCE_DIR}/overcome_games/"
+                            f"{DATA_DIR}/overcome_games/"
                             f"{comb_length}_{first_team_row['team_id']}&{second_team_row['team_id']}.csv",
                             index=False,
                         )

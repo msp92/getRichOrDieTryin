@@ -1,0 +1,9 @@
+data/
+streamlit/
+Zplayground/
+__pycache__/
+*.log
+*.sqlite3
+.streamlit/
+.env
+.venv

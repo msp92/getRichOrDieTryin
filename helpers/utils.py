@@ -1,20 +1,48 @@
+import boto3
 import csv
+import json
+import logging
 import os
 import shutil
-import json
+import subprocess
 import unicodedata
-from typing import List, Union
 
 import pandas as pd
+
+from datetime import datetime
+from typing import List, Union
+
+from config.entity_names import (
+    FIXTURE_STATS_DIR,
+    FIXTURE_EVENTS_DIR,
+    FIXTURE_PLAYER_STATS_DIR,
+)
 from config.vars import DATA_DIR, ROOT_DIR
 
-import sys
-from pathlib import Path
 
-sys.path.append(str(Path(__file__).resolve().parent.parent))
+def package_and_upload(local_dir: str, s3_bucket: str, prefix: str) -> None:
+    """
+    Creates a tar archive from local_dir and uploads it to s3_bucket with a timestamped filename.
+    Example usage after pipeline run, if you want to store processed data logs or JSON files.
+    """
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    archive_name = f"{prefix}_{timestamp}.tar.gz"
+    tmp_path = f"/tmp/{archive_name}"
+    s3_client = boto3.client("s3")
+
+    logging.info(f"Packing directory: {local_dir} -> {tmp_path}")
+    subprocess.run(f"tar -czf {tmp_path} -C {local_dir} .", shell=True, check=True)
+
+    s3_key = f"{prefix}/backups/{archive_name}"
+    logging.info(f"Uploading to s3://{s3_bucket}/{s3_key}")
+    s3_client.upload_file(tmp_path, s3_bucket, s3_key)
+
+    # Cleanup
+    os.remove(tmp_path)
+    logging.info("Package and upload completed.")
 
 
-def get_df_from_json(filename: str, sub_dir: str = "") -> pd.DataFrame:
+def get_df_from_json(filename: str, sub_dir: str) -> pd.DataFrame:
     """
     Read JSON data from a file and convert it to a pandas DataFrame.
 
@@ -33,11 +61,14 @@ def get_df_from_json(filename: str, sub_dir: str = "") -> pd.DataFrame:
         with open(f"{ROOT_DIR}/{DATA_DIR}/{sub_dir}/{filename}.json", "r") as file:
             json_data = json.load(file)
             df = pd.json_normalize(json_data["response"])
-
             # Take 'fixture_id' from response parameters
-            if sub_dir in ["fixture_stats", "fixture_player_stats", "events"]:
+            if sub_dir in [
+                FIXTURE_STATS_DIR,
+                FIXTURE_PLAYER_STATS_DIR,
+                FIXTURE_EVENTS_DIR,
+            ]:
                 df.insert(0, "fixture_id", json_data["parameters"]["fixture"])
-                if sub_dir == "events":
+                if sub_dir == FIXTURE_EVENTS_DIR:
                     df.insert(1, "event_id", range(1, len(df) + 1))
                 else:
                     df.insert(1, "side", ["home", "away"])
@@ -89,8 +120,8 @@ def utf8_to_ascii(text: str) -> str:
     return ascii_text
 
 
-def safe_int_cast(value):
+def safe_str_to_int_cast(value: str) -> int | None:
     try:
         return int(value) if value is not None else None
-    except ValueError:
-        return value  # Return original if it's not a valid integer string
+    except ValueError as e:
+        raise e

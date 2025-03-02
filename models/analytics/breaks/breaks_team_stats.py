@@ -1,17 +1,14 @@
-from sqlalchemy import Column, Integer, String, Date, DateTime
+import pandas as pd
+from sqlalchemy import Column, Integer, String, Date, DateTime, asc
+from sqlalchemy.exc import InvalidRequestError
 
+from config.entity_names import ANALYTICS_BREAKS_SCHEMA_NAME
 from models.base import Base
-from services.db import Db
-
-db = Db()
-
-# Specify the schema
-SCHEMA_NAME = "analytics_breaks"
 
 
 class BreaksTeamStats(Base):
     __tablename__ = "breaks_team_stats"
-    __table_args__ = {"schema": SCHEMA_NAME}
+    __table_args__ = {"schema": ANALYTICS_BREAKS_SCHEMA_NAME}
     __mapper_args__ = {"concrete": True}
 
     team_id = Column(Integer, primary_key=True)
@@ -20,6 +17,8 @@ class BreaksTeamStats(Base):
     total = Column(Integer)
     home = Column(Integer)
     away = Column(Integer)
+    won = Column(Integer)
+    lost = Column(Integer)
     jan = Column(Integer)
     feb = Column(Integer)
     mar = Column(Integer)
@@ -35,14 +34,6 @@ class BreaksTeamStats(Base):
     beg_month = Column(Integer)
     mid_month = Column(Integer)
     end_month = Column(Integer)
-    # c_2012 = Column("2012", Integer)
-    # c_2013 = Column("2013", Integer)
-    # c_2014 = Column("2014", Integer)
-    # c_2015 = Column("2015", Integer)
-    # c_2016 = Column("2016", Integer)
-    # c_2017 = Column("2017", Integer)
-    # c_2018 = Column("2018", Integer)
-    # c_2019 = Column("2019", Integer)
     c_2020 = Column("2020", Integer)
     c_2021 = Column("2021", Integer)
     c_2022 = Column("2022", Integer)
@@ -113,3 +104,17 @@ class BreaksTeamStats(Base):
     rounds_27_39 = Column("rounds_27-39", Integer)
     rounds_40_60 = Column("rounds_40-60", Integer)
     update_date = Column(DateTime)
+
+    @classmethod
+    def get_all(cls):
+        with cls.db.get_session() as session:
+            try:
+                breaks_team_stats_df = pd.read_sql_query(
+                    session.query(cls).order_by(asc(cls.team_id)).statement,
+                    cls.db.engine,
+                )
+            except InvalidRequestError as e:
+                raise InvalidRequestError(
+                    f"Error while reading {cls.__name__} data: {e}"
+                )
+        return breaks_team_stats_df

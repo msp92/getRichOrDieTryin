@@ -121,6 +121,8 @@ celerybeat.pid
 
 # Environments
 .env
+.env.local
+.env.rds
 .venv
 env/
 venv/
@@ -164,10 +166,9 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
-/data/
-/scripts/
-/config/
-/.streamlit/secrets.toml
-/TESTZ/discord_utils.py
-/tests/
-/TESTZ/
+data/
+scripts/
+!/jobs/config
+.streamlit/secrets.toml
+Zplayground/
+/google_api_credentials.json

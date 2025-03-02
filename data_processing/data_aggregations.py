@@ -1,16 +1,9 @@
 import logging
-
 import pandas as pd
 
 from config.vars import DATA_DIR
-from models.data.fixtures import Fixture
-from models.data.main import Team
+from models.data_warehouse.main import Team
 from services.db import Db
-import sys
-from pathlib import Path
-
-sys.path.append(str(Path(__file__).resolve().parent.parent))
-
 
 db = Db()
 
@@ -30,7 +23,8 @@ def aggregate_breaks_team_stats_from_raw(df: pd.DataFrame) -> pd.DataFrame:
     away = (
         df.loc[df["side"] == "away"].groupby("team_id").size().reset_index(name="away")
     )
-
+    won = df.loc[df["winner"]].groupby("team_id").size().reset_index(name="won")
+    lost = df.loc[~df["winner"]].groupby("team_id").size().reset_index(name="lost")
     # Merge counts into the dataframe
     breaks_team_stats_df = breaks_team_stats_df.merge(
         last_break, on="team_id", how="left"
@@ -38,6 +32,8 @@ def aggregate_breaks_team_stats_from_raw(df: pd.DataFrame) -> pd.DataFrame:
     breaks_team_stats_df = breaks_team_stats_df.merge(total, on="team_id", how="left")
     breaks_team_stats_df = breaks_team_stats_df.merge(home, on="team_id", how="left")
     breaks_team_stats_df = breaks_team_stats_df.merge(away, on="team_id", how="left")
+    breaks_team_stats_df = breaks_team_stats_df.merge(won, on="team_id", how="left")
+    breaks_team_stats_df = breaks_team_stats_df.merge(lost, on="team_id", how="left")
 
     months = {
         1: "jan",
@@ -105,7 +101,6 @@ def aggregate_breaks_team_stats_from_raw(df: pd.DataFrame) -> pd.DataFrame:
         end_month, on="team_id", how="left"
     )
 
-    # TODO: convert round columns to int if possible
     for round_num in range(1, 61):
         round_count = (
             df.loc[df["round"] == str(round_num)]
@@ -185,7 +180,7 @@ def calculate_no_draw_csv_for_all_teams() -> None:
     team_stats_df_list = []
     for idx, row in teams_df.iterrows():
         try:
-            team_stats_grouped, team_stats_total = Fixture.get_season_stats_by_team(
+            team_stats_grouped, team_stats_total = Team.get_statistics(
                 row["team_id"], "2023"
             )
             team_stats_total.filter(items=["team_name", "form"])
@@ -256,51 +251,51 @@ def update_table(
 
 
 # Calculate table for input df
-def calculate_table(
-    league_id: int, season_year: int, rounds: str = "all_finished"
-) -> pd.DataFrame:
-    """
-    Create full table or as of round to calculate custom power factor
-    """
-    with db.get_session() as session:
-        try:
-            fixtures_df = pd.read_sql_query(
-                session.query(Fixture)
-                .filter(
-                    (Fixture.league_id == league_id)
-                    & (Fixture.season_year == season_year)
-                    & (Fixture.status == "FT")
-                )
-                .statement,
-                db.engine,
-            )
-        except Exception:
-            raise Exception
-
-    filtered_fixtures_df = Fixture.filter_fixtures_by_rounds(fixtures_df, rounds)
-
-    table = pd.DataFrame(
-        columns=[
-            "Team",
-            "G",
-            "W",
-            "D",
-            "L",
-            "GF",
-            "GA",
-            "PTS",
-        ]
-    )
-
-    for idx, result in filtered_fixtures_df.iterrows():
-        home_team = result["home_team_name"]
-        away_team = result["away_team_name"]
-        home_goals = int(result["goals_home"])
-        away_goals = int(result["goals_away"])
-        table = update_table(table, home_team, away_team, home_goals, away_goals)
-
-    table = table.sort_values(by=["PTS", "GF"], ascending=[False, False]).reset_index(
-        drop=True
-    )
-    table.index += 1
-    return table
+# def calculate_table(
+#     league_id: int, season_year: int, rounds: str = "all_finished"
+# ) -> pd.DataFrame:
+#     """
+#     Create full table or as of round to calculate custom power factor
+#     """
+#     with db.get_session() as session:
+#         try:
+#             fixtures_df = pd.read_sql_query(
+#                 session.query(Fixture)
+#                 .filter(
+#                     (Fixture.league_id == league_id)
+#                     & (Fixture.season_year == season_year)
+#                     & (Fixture.status == "FT")
+#                 )
+#                 .statement,
+#                 db.engine,
+#             )
+#         except Exception:
+#             raise Exception
+#
+#     filtered_fixtures_df = Fixture.filter_fixtures_by_rounds(fixtures_df, rounds)
+#
+#     table = pd.DataFrame(
+#         columns=[
+#             "Team",
+#             "G",
+#             "W",
+#             "D",
+#             "L",
+#             "GF",
+#             "GA",
+#             "PTS",
+#         ]
+#     )
+#
+#     for idx, result in filtered_fixtures_df.iterrows():
+#         home_team = result["home_team_name"]
+#         away_team = result["away_team_name"]
+#         home_goals = int(result["goals_home"])
+#         away_goals = int(result["goals_away"])
+#         table = update_table(table, home_team, away_team, home_goals, away_goals)
+#
+#     table = table.sort_values(by=["PTS", "GF"], ascending=[False, False]).reset_index(
+#         drop=True
+#     )
+#     table.index += 1
+#     return table

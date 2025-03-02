@@ -2,6 +2,9 @@
 # Explicitly set the root of your project
 mypy_path = "getRichOrDieTryin"
 
+# Include plugin for SQLAlchemy
+plugins = "sqlalchemy.ext.mypy.plugin"
+
 # Ignore imports that don't have type hints
 ignore_missing_imports = true
 
@@ -15,7 +18,7 @@ show_error_codes = true
 disallow_untyped_defs = true
 
 # Disallow `Any` expressions anywhere
-disallow_any_explicit = true
+disallow_any_explicit = false
 
 # Warn about returning values with incorrect types
 warn_return_any = true
@@ -31,8 +34,9 @@ files = [
     "config/",
     "data_processing/",
     "helpers/",
-    "jobs/",
     "models/",
+    "pipelines/",
+    "scheduler/",
     "services/",
     "tests/"
 ]
