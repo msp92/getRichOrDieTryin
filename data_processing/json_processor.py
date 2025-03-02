@@ -1,115 +1,64 @@
 import logging
+from multiprocessing import Pool
 import pandas as pd
-import time
+from typing import Callable, List
 
-from concurrent.futures import ThreadPoolExecutor
-from pathlib import Path
-from typing import List, Union, Callable
-
-from data_processing.data_processing import (
-    load_all_files_paths_from_data_directory,
-)
-
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logging.basicConfig(level=logging.INFO)
 
 
 class JsonProcessor:
     def __init__(
         self,
-        entity: str,
-        parse_method: Callable[[Union[None, str]], pd.DataFrame],
-        upsert_method: Callable[[pd.DataFrame], None],
-        input_dir: str,
-        chunk_size: int,
+        parse_method: Callable[[str], pd.DataFrame],
+        batch_size: int = 100,
+        num_processes: int = 2,
     ):
-        self.entity = entity
-        self.files = load_all_files_paths_from_data_directory(entity)
+        """
+        Initializes the JsonProcessor class.
+
+        Args:
+            parse_method: A function that parses a single JSON file into a DataFrame.
+            batch_size: The size of the batch of files to process in one go.
+            num_processes: The number of parallel processes.
+        """
         self.parse_method = parse_method
-        self.upsert_method = upsert_method
-        self.input_dir = input_dir
-        self.chunk_size = chunk_size
+        self.batch_size = batch_size
+        self.num_processes = num_processes
 
-    def process_files_chunk(
-        self, files_chunk: List[Path], chunk_index: int, total_chunks: int
-    ) -> pd.DataFrame:
-        logging.debug(
-            f"Processing chunk {chunk_index + 1}/{total_chunks} with {len(files_chunk)} files for entity={self.entity}"
-        )
+    def process_batch(self, batch: List[str]) -> pd.DataFrame:
+        """
+        Processes a batch of files and performs an upsert.
 
-        dfs = []
-        total_files = len(files_chunk)
-        last_logged_time = time.time()
-
-        for idx, file in enumerate(files_chunk):
+        Args:
+            batch: A list of paths to JSON files.
+        """
+        dataframes = []
+        for file_path in batch:
             try:
-                # Log progress in percentage for the current chunk
-                progress = (idx + 1) / total_files * 100
-                current_time = time.time()
-
-                # Log progress every minute
-                if current_time - last_logged_time >= 60:
-                    logging.debug(
-                        f"Parsing chunk {chunk_index + 1}/{total_chunks} - File {idx + 1}/{total_files} ({progress:.2f}% complete)"
-                    )
-                    last_logged_time = current_time
-
-                # Parse the file
-                file_name = file.name
-                df = self.parse_method(file_name)
-                dfs.append(df)
-            except Exception as e:
-                logging.error(f"Failed to parse file {file}: {e}")
-
-        if dfs:
-            logging.debug(f"Concatenating {len(dfs)} DataFrames for chunk")
-            return pd.concat(dfs, ignore_index=True)
-        else:
-            logging.warning("No DataFrames created in this chunk")
-            return pd.DataFrame()
-
-    def run_multiprocessing(self) -> None:
-        # Split files into chunks
-        file_chunks = [
-            self.files[i : i + self.chunk_size]
-            for i in range(0, len(self.files), self.chunk_size)
-        ]
-
-        total_chunks = len(file_chunks)
-        logging.debug(
-            f"Split files into {total_chunks} chunks of up to {self.chunk_size} files each."
-        )
-
-        # with ProcessPoolExecutor() as executor:
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            # Create a list of arguments for process_files_chunk function
-            chunk_args = [
-                (chunk, idx, total_chunks) for idx, chunk in enumerate(file_chunks)
-            ]
-            results = executor.map(self._process_chunk_wrapper, chunk_args)
-
-            for chunk_df in results:
-                if not chunk_df.empty:
-                    logging.debug(
-                        f"Upserting chunk with {len(chunk_df)} records to the database"
-                    )
-                    self.upsert_to_database(chunk_df)
+                df = self.parse_method(file_path)
+                if not df.empty:
+                    dataframes.append(df)
                 else:
-                    logging.warning("Received an empty DataFrame from a chunk")
+                    logging.warning(f"Empty DataFrame from {file_path}")
+            except Exception as e:
+                logging.error(f"Error parsing {file_path}: {e}")
 
-    def _process_chunk_wrapper(
-        self, chunk_args: tuple[list[Path], int, int]
-    ) -> pd.DataFrame:
-        # Unpack the arguments
-        chunk, chunk_index, total_chunks = chunk_args
-        return self.process_files_chunk(chunk, chunk_index, total_chunks)
+        return pd.concat(dataframes) if dataframes else pd.DataFrame()
 
-    def upsert_to_database(self, df: pd.DataFrame) -> None:
+    def process_files(self, file_paths: List[str]) -> pd.DataFrame:
+        """Process all files in parallel batches and return the combined DataFrame."""
+        total_files = len(file_paths)
+        if total_files == 0:
+            logging.warning("No files provided to process")
+            return pd.DataFrame()
         logging.info(
-            f"Upserting {len(df)} records to the database for entity={self.entity}"
+            f"Processing {total_files} files with {self.num_processes} processes, batch_size={self.batch_size}"
         )
-        try:
-            self.upsert_method(df)
-        except Exception as e:
-            logging.error(f"Failed to upsert records to the database: {e}")
+        batches = [
+            file_paths[i : i + self.batch_size]
+            for i in range(0, total_files, self.batch_size)
+        ]
+        with Pool(processes=self.num_processes) as pool:
+            results = pool.map(self.process_batch, batches)
+        logging.info("Completed processing all files")
+        return pd.concat(results) if results else pd.DataFrame()
