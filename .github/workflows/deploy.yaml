@@ -72,6 +72,11 @@ jobs:
             echo "DB_PASSWORD=$DB_PASSWORD" >> .env.rds
             echo "DB_HOST=$DB_HOST" >> .env.rds
             echo "DB_PORT=$DB_PORT" >> .env.rds
+            echo "API_FOOTBALL_BASE_URL=$API_FOOTBALL_BASE_URL" >> .env.rds
+            echo "API_FOOTBALL_HEADER_KEY_NAME=$API_FOOTBALL_HEADER_KEY_NAME" >> .env.rds
+            echo "API_FOOTBALL_HEADER_KEY_VALUE=$API_FOOTBALL_HEADER_KEY_VALUE" >> .env.rds
+            echo "API_FOOTBALL_HEADER_HOST_NAME=$API_FOOTBALL_HEADER_HOST_NAME" >> .env.rds
+            echo "API_FOOTBALL_HEADER_HOST_VALUE=$API_FOOTBALL_HEADER_HOST_VALUE" >> .env.rds
           EOF
           
           # Save Google credentials to file
@@ -96,9 +101,6 @@ jobs:
           scp -i key.pem -r scripts $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem -r services $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           echo "Copying completed."
-          
-          # Debug: Check remote directory contents after copy
-          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "ls -l $REMOTE_PATH || echo 'Directory empty or inaccessible'"
           
           # Restart Docker Compose on EC2 with explicit file and current directory
           ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
