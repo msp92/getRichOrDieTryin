@@ -1,18 +1,21 @@
 import datetime as dt
 
 from config.vars import (
-    GOOGLE_API_CREDENTIALS, GOOGLE_DRIVE_GRODT_FOLDER_ID,
+    GOOGLE_API_CREDENTIALS,
+    GOOGLE_DRIVE_GRODT_FOLDER_ID,
 )
 from models.analytics.breaks import BreaksTeamStats
 from models.base import BaseMixin
 from services import Db
-from jobs.exporters.data_exporter import GoogleDriveDataExporter
+from services.exporters.google_drive_exporter import GoogleDriveExporter
+
+# NOTE: czy to powinno iść do pipelines/ ?
 
 
 def main():
     db = Db()
     BaseMixin.set_db(db)
-    exporter = GoogleDriveDataExporter(db.engine, GOOGLE_API_CREDENTIALS)
+    exporter = GoogleDriveExporter(db.engine, GOOGLE_API_CREDENTIALS)
 
     # TODO: prepare config for all exports
 
@@ -31,10 +34,11 @@ def main():
     )
     exporter.upload_to_google_drive(file_name, GOOGLE_DRIVE_GRODT_FOLDER_ID)
 
-
     ## DETAILED FIXTURES
     file_name = f"detailed_fixtures_{dt.datetime.now().strftime('%Y%m%d%H%M')}.xlsx"
-    detailed_fixtures_df = exporter.run_query_from_file("fixtures_events_summary_new.sql")
+    detailed_fixtures_df = exporter.run_query_from_file(
+        "fixtures_events_summary_new.sql"
+    )
 
     exporter.export_to_xlsx(
         [detailed_fixtures_df],
