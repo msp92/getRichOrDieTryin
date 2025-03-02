@@ -34,8 +34,9 @@ files = [
     "config/",
     "data_processing/",
     "helpers/",
-    "jobs/",
     "models/",
+    "pipelines/",
+    "scheduler/",
     "services/",
     "tests/"
 ]
