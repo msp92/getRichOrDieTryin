@@ -52,12 +52,27 @@ jobs:
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+          DB_NAME: ${{ secrets.DB_NAME }}
+          DB_USER: ${{ secrets.DB_USER }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
           GOOGLE_CREDENTIALS: ${{ secrets.GOOGLE_CREDENTIALS_JSON }}
           REMOTE_PATH: /home/ec2-user/getRichOrDieTryin
         run: |
           # Save SSH key to file
           echo "$EC2_KEY" > key.pem
           chmod 400 key.pem
+          
+          # Create .env.rds on EC2 dynamically
+          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+            cd $REMOTE_PATH
+            echo "DB_NAME=$DB_NAME" > .env.rds
+            echo "DB_USER=$DB_USER" >> .env.rds
+            echo "DB_PASSWORD=$DB_PASSWORD" >> .env.rds
+            echo "DB_HOST=$DB_HOST" >> .env.rds
+            echo "DB_PORT=$DB_PORT" >> .env.rds
+          EOF
           
           # Save Google credentials to file
           echo "$GOOGLE_CREDENTIALS" > google_credentials.json
@@ -72,7 +87,6 @@ jobs:
           scp -i key.pem docker-compose.yml $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem Dockerfile $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem requirements.txt $EC2_USER@$EC2_HOST:$REMOTE_PATH/
-          scp -i key.pem .env.rds $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem -r config $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem -r data_processing $EC2_USER@$EC2_HOST:$REMOTE_PATH/
           scp -i key.pem -r helpers $EC2_USER@$EC2_HOST:$REMOTE_PATH/
