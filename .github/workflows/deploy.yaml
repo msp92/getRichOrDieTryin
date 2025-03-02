@@ -100,8 +100,8 @@ jobs:
           # Restart Docker Compose on EC2 with explicit file and current directory
           ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
             cd $REMOTE_PATH
-            docker-compose --file docker-compose.yml down || echo "docker-compose down failed"
-            docker-compose --file docker-compose.yml up -d --build scheduler || echo "docker-compose up failed"
+            docker-compose --file "$REMOTE_PATH/docker-compose.yml" down || echo "docker-compose down failed"
+            docker-compose --file "$REMOTE_PATH/docker-compose.yml" up -d --build scheduler || echo "docker-compose up failed"
           EOF
 
           # Clean up
