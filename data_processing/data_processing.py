@@ -9,6 +9,11 @@ from config.vars import DATA_DIR, ROOT_DIR
 from helpers.utils import get_df_from_json
 
 
+def load_json_file_names_from_directory(sub_dir: str) -> List[str]:
+    """Load file names from a data directory."""
+    return [p.name for p in Path(f"{DATA_DIR}/{sub_dir}").glob("*.json")]
+
+
 def load_all_files_from_data_directory(sub_dir: str) -> pd.DataFrame:
     """
     Load all JSON files from a directory and combine them into a single DataFrame.

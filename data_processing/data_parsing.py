@@ -49,6 +49,8 @@ def parse_leagues() -> pd.DataFrame:
         .filter(items=[column.name for column in League.__table__.columns])
         .sort_values(by="league_id")
     )
+
+    final_df["country_id"] = final_df["country_id"].astype(int)
     return final_df
 
 
@@ -126,41 +128,39 @@ def parse_seasons() -> pd.DataFrame:
     return final_df
 
 
-def parse_fixtures() -> pd.DataFrame:
+def parse_fixtures_file(file_name: str) -> pd.DataFrame:
     from models.data_warehouse.main import Referee
     from models.data_warehouse.fixtures import Fixture
 
-    logging.info("** Parsing fixtures data **")
-    df_fixtures = load_all_files_from_data_directory(f"{FIXTURES_DIR}")
+    raw_df = get_df_from_json(file_name[:-5], sub_dir=FIXTURES_DIR)
+    raw_df.fillna(pd.NA, inplace=True)
 
     # TODO: check for duplicates; if Yes -> take status FT/AET/PEN
     # TODO: for now try without status = 'PST'
-    df_fixtures.drop_duplicates(inplace=True)
-    df_fixtures = df_fixtures[df_fixtures["fixture.status.short"] != "PST"]
+    raw_df.drop_duplicates(inplace=True)
+    raw_df = raw_df[raw_df["fixture.status.short"] != "PST"]
 
     # Extract season stage and round from raw data in league.round
-    df_fixtures[["season_stage", "round"]] = df_fixtures["league.round"].str.split(
+    raw_df[["season_stage", "round"]] = raw_df["league.round"].str.split(
         " - ", n=1, expand=True
     )
 
     # Convert numeric values to integers
-    df_fixtures["goals.home"] = df_fixtures["goals.home"].astype("Int64")
-    df_fixtures["goals.away"] = df_fixtures["goals.away"].astype("Int64")
-    df_fixtures["score.halftime.home"] = df_fixtures["score.halftime.home"].astype(
-        "Int64"
-    )
-    df_fixtures["score.halftime.away"] = df_fixtures["score.halftime.away"].astype(
-        "Int64"
-    )
+    raw_df["goals.home"] = raw_df["goals.home"].astype("Int32")
+    raw_df["goals.away"] = raw_df["goals.away"].astype("Int32")
+    raw_df["score.halftime.home"] = raw_df["score.halftime.home"].astype("Int32")
+    raw_df["score.halftime.away"] = raw_df["score.halftime.away"].astype("Int32")
 
-    df_fixtures["fixture.referee"] = df_fixtures["fixture.referee"].apply(
+    raw_df["fixture.referee"] = raw_df["fixture.referee"].apply(
         lambda referee_name: (
-            Referee.map_referee_name(referee_name) if referee_name else None
+            Referee.map_referee_name(referee_name)
+            if not pd.isna(referee_name)
+            else None
         )
     )
 
     final_df = (
-        df_fixtures.rename(
+        raw_df.rename(
             columns={
                 "fixture.id": "fixture_id",
                 "fixture.date": "date",
@@ -267,10 +267,10 @@ def parse_coaches() -> pd.DataFrame:
         adjust_date_range_overlaps
     )
 
-    final_df["coach_id"] = final_df["coach_id"].astype("Int64")
+    final_df["coach_id"] = final_df["coach_id"].astype("Int32")
     final_df["coach_name"] = final_df["coach_name"].apply(utf8_to_ascii)
-    final_df["age"] = final_df["age"].astype(pd.Int64Dtype())
-    final_df["team_id"] = final_df["team_id"].astype("Int64")
+    final_df["age"] = final_df["age"].astype(pd.Int32Dtype())
+    final_df["team_id"] = final_df["team_id"].astype("Int32")
 
     # Remove rows where coach_name = None
     final_df = final_df[final_df["coach_name"] != "None None"]
@@ -291,8 +291,6 @@ def parse_coaches() -> pd.DataFrame:
 
 
 def parse_fixture_events_file(file_name: str) -> pd.DataFrame:
-    # logging.info("** Parsing fixture events data **")
-    # raw_df = load_all_files_from_data_directory("events")
     raw_df = get_df_from_json(file_name[:-5], sub_dir="fixture_events")
     raw_df.fillna("", inplace=True)
     final_df = raw_df.rename(
@@ -319,17 +317,15 @@ def parse_fixture_events_file(file_name: str) -> pd.DataFrame:
     final_df["extra_time"] = final_df["extra_time"].replace(
         ["", None, float("nan")], pd.NA
     )
-    final_df["extra_time"] = final_df["extra_time"].astype(pd.Int64Dtype())
+    final_df["extra_time"] = final_df["extra_time"].astype(pd.Int32Dtype())
     final_df = final_df[final_df["event_type"] != "subst"]
     return final_df
 
 
 def parse_fixture_stats_file(file_name: str) -> pd.DataFrame:
-    # logging.info("** Parsing fixture stats data **")
     raw_df = get_df_from_json(file_name[:-5], sub_dir=FIXTURE_STATS_DIR)
-    # raw_df = load_all_files_from_data_directory("fixture_stats")
     # Replace None and NaN values with a placeholder value to avoid None/NaN values in
-    raw_df.fillna("", inplace=True)
+    raw_df.fillna(pd.NA, inplace=True)
     # raw_df["side"] = ["home", "away"]
     # Transform from {"key": "Shots On Goal", "value": 5} to {"Shots On Goal": 10}
     raw_df["statistics"] = raw_df["statistics"].apply(
@@ -342,10 +338,8 @@ def parse_fixture_stats_file(file_name: str) -> pd.DataFrame:
 
 
 def parse_fixture_player_stats_file(file_name: str) -> pd.DataFrame:
-    # logging.info("** Parsing fixture players stats data **")
-    # raw_df = load_all_files_from_data_directory("player_stats")
     raw_df = get_df_from_json(file_name[:-5], sub_dir=FIXTURE_PLAYER_STATS_DIR)
-    raw_df.fillna("", inplace=True)
+    raw_df.fillna(pd.NA, inplace=True)
     # raw_df["side"] = ["home", "away"]
     # Transform statistics to key:value pairs
     raw_df["players"] = raw_df["players"].apply(
