@@ -65,7 +65,7 @@ jobs:
           chmod 400 key.pem
           
           # Create .env.rds on EC2 dynamically
-          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
             cd $REMOTE_PATH
             echo "DB_NAME=$DB_NAME" > .env.rds
             echo "DB_USER=$DB_USER" >> .env.rds
@@ -101,10 +101,10 @@ jobs:
           ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "ls -l $REMOTE_PATH || echo 'Directory empty or inaccessible'"
           
           # Restart Docker Compose on EC2 with explicit file and current directory
-          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << EOF
             cd $REMOTE_PATH
-            docker-compose --file "$REMOTE_PATH/docker-compose.yml" down || echo "docker-compose down failed"
-            docker-compose --file "$REMOTE_PATH/docker-compose.yml" up -d --build scheduler || echo "docker-compose up failed"
+            docker-compose down
+            docker-compose up -d --build scheduler
           EOF
 
           # Clean up
