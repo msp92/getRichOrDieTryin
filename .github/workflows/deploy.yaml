@@ -1,0 +1,81 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-central-1
+
+      - name: Deploy to EC2
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
+          REMOTE_PATH: /home/ec2-user/getRichOrDieTryin
+        run: |
+          # Save SSH key to file
+          echo "$EC2_KEY" > key.pem
+          chmod 400 key.pem
+          
+          # Save Google credentials to file
+          echo "$GOOGLE_CREDS" > google_credentials.json
+
+          # Create remote directory if it doesn't exist
+          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "mkdir -p $REMOTE_PATH"
+
+          # Copy specific files and directories to EC2
+          echo "Copying project files to EC2..."
+          scp -i key.pem google_api_credentials.json $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem pyproject.toml $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem docker-compose.yml $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem Dockerfile $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem requirements.txt $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem .env.rds $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem -r config $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem -r data_processing $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem -r helpers $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem -r jobs $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem -r models $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem -r pipelines $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem -r scheduler $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem -r scripts $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+          scp -i key.pem -r services $EC2_USER@$EC2_HOST:$REMOTE_PATH/
+
+          # Restart Docker Compose on EC2
+          ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST << 'EOF'
+            cd $REMOTE_PATH
+            docker-compose down
+            docker-compose up -d --build scheduler
+          EOF
+
+          # Clean up
+          rm key.pem
+          echo "Deployment completed."
