@@ -27,6 +27,13 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v2
 
+      - name: Debug variables
+        run: |
+          echo "EC2_HOST: $EC2_HOST"
+          echo "EC2_USER: $EC2_USER"
+          echo "EC2_KEY length: ${#EC2_KEY}"
+          ls -l key.pem || echo "key.pem not found"
+
       - name: Deploy to EC2
         env:
           EC2_HOST: ${{ secrets.EC2_HOST }}
