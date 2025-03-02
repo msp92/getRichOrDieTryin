@@ -1,0 +1,58 @@
+# Global entity names
+
+# API Endpoints
+COACHES_API_ENDPOINT = "coachs"
+COUNTRIES_API_ENDPOINT = "countries"
+FIXTURE_EVENTS_API_ENDPOINT = "fixtures/events"
+FIXTURE_LINEUPS_API_ENDPOINT = "fixtures/lineups"
+FIXTURE_PLAYER_STATS_API_ENDPOINT = "fixtures/players"
+FIXTURE_STATS_API_ENDPOINT = "fixtures/statistics"
+FIXTURES_API_ENDPOINT = "fixtures"
+LEAGUES_API_ENDPOINT = "leagues"
+TEAMS_API_ENDPOINT = "teams"
+
+# Directories
+COACHES_DIR = "coaches"
+COINCIDENTAL_BREAKS_DIR = "coincidental_breaks"
+COUNTRIES_DIR = "countries"
+FIXTURE_EVENTS_DIR = "fixture_events"
+FIXTURE_LINEUPS_DIR = "fixture_lineups"
+FIXTURE_PLAYER_STATS_DIR = "fixture_player_stats"
+FIXTURE_STATS_DIR = "fixture_stats"
+FIXTURES_DIR = "fixtures"
+LEAGUES_DIR = "leagues"
+PROCESSED_DIR = "processed"
+REFEREES_DIR = "referees"
+TEAMS_DIR = "teams"
+
+# File prefixes
+FIXTURE_EVENTS_FILES_PREFIX = "EVENTS_"
+FIXTURE_LINEUPS_FILES_PREFIX = "LINEUPS_"
+FIXTURE_PLAYER_STATS_FILES_PREFIX = "PLAYER_STATS_"
+FIXTURE_STATS_FILES_PREFIX = "STATS_"
+FIXTURES_FILES_PREFIX = "FIXTURES_"
+TEAMS_FILES_PREFIX = "TEAMS_"
+
+# Main file names
+COUNTRIES_FILE_NAME = "COUNTRIES"
+LEAGUES_FILE_NAME = "LEAGUES"
+
+# Schemas
+ANALYTICS_BREAKS_SCHEMA_NAME = "analytics_breaks"
+ANALYTICS_FIXTURES_SCHEMA_NAME = "analytics_fixtures"
+DW_MAIN_SCHEMA_NAME = "dw_main"
+DW_FIXTURES_SCHEMA_NAME = "dw_fixtures"
+
+# Tables
+COACHES_TABLE_NAME = "coaches"
+COUNTRIES_TABLE_NAME = "countries"
+FIXTURE_EVENTS_TABLE_NAME = "fixture_events"
+FIXTURE_LINEUPS_TABLE_NAME = "fixture_lineups"
+FIXTURE_ODDS_TABLE_NAME = "odds"
+FIXTURE_PLAYER_STATS_TABLE_NAME = "fixture_player_stats"
+FIXTURE_PREDICTIONS_TABLE_NAME = "fixture_predictions"
+FIXTURE_STATS_TABLE_NAME = "fixture_stats"
+FIXTURES_TABLE_NAME = "fixtures"
+LEAGUES_TABLE_NAME = "leagues"
+SEASONS_TABLE_NAME = "seasons"
+TEAMS_TABLE_NAME = "teams"
