@@ -41,7 +41,7 @@ jobs:
           chmod 400 key.pem
           
           # Save Google credentials to file
-          echo "GOOGLE_CREDENTIALS" > google_credentials.json
+          echo "$GOOGLE_CREDENTIALS" > google_credentials.json
 
           # Create remote directory if it doesn't exist
           ssh -i key.pem -o StrictHostKeyChecking=no $EC2_USER@$EC2_HOST "mkdir -p $REMOTE_PATH"
