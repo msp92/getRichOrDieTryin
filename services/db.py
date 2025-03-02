@@ -8,8 +8,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.schema import MetaData
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import sessionmaker, scoped_session, Query
-from typing import Callable
-from typing_extensions import Optional, Any
+from typing import Callable, Optional, Any
 
 from config.db_config import DbConfig
 

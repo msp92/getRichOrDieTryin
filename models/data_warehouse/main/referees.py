@@ -25,7 +25,9 @@ class Referee:
 
     @classmethod
     def map_referee_name(cls, referee_name: str) -> str | None:
-        mapping_df = pd.read_csv(f"{ROOT_DIR}/{DATA_DIR}/{REFEREES_DIR}/mapping_referees.csv")
+        mapping_df = pd.read_csv(
+            f"{ROOT_DIR}/{DATA_DIR}/{REFEREES_DIR}/mapping_referees.csv"
+        )
 
         # Check for exact matches in mapping
         exact_match = mapping_df[mapping_df["original_name"] == referee_name]
@@ -53,9 +55,9 @@ class Referee:
         if high_similarity_names:
             # Automatically take the gold_name of the highest similarity match
             name, similarity = high_similarity_names[0]
-            mapped_name: str = mapping_df[
-                mapping_df["original_name"] == name
-            ].iloc[0]["gold_name"]
+            mapped_name: str = mapping_df[mapping_df["original_name"] == name].iloc[0][
+                "gold_name"
+            ]
             logging.info(
                 f"Auto-mapping '{referee_name}' to '{mapped_name}' (Similarity: {similarity:.2f})"
             )
@@ -79,7 +81,8 @@ class Referee:
             ):
                 logging.info("Found similar names, but initials differs.")
                 append_data_to_csv(
-                    referee_name, f"{ROOT_DIR}/{DATA_DIR}/{REFEREES_DIR}/new_referees.csv"
+                    referee_name,
+                    f"{ROOT_DIR}/{DATA_DIR}/{REFEREES_DIR}/new_referees.csv",
                 )
                 return None
 

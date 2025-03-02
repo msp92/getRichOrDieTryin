@@ -34,7 +34,9 @@ class Team(Base):
     def insert_missing_teams_into_db(cls, fixtures_df: pd.DataFrame) -> None:
         logging.info("Checking for teams in fixtures that are missing in Team table...")
         # Get unique teams from all pulled fixtures
-        unique_team_ids = pd.unique(pd.concat([fixtures_df["home_team_id"], fixtures_df["away_team_id"]]))
+        unique_team_ids = pd.unique(
+            pd.concat([fixtures_df["home_team_id"], fixtures_df["away_team_id"]])
+        )
         unique_team_ids_df = pd.DataFrame({"team_id": unique_team_ids})
 
         # Mark which teams exists in Team table and which do not
@@ -57,7 +59,7 @@ class Team(Base):
         missing_teams_in_fixtures_df = fixtures_df[
             fixtures_df["home_team_id"].isin(missing_ids_df["team_id"])
             | fixtures_df["away_team_id"].isin(missing_ids_df["team_id"])
-            ]
+        ]
         # Get filtered home/away dfs
         home_teams_missing = missing_teams_in_fixtures_df[
             ["home_team_id", "home_team_name", "league_id", "country_name"]
