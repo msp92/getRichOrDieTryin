@@ -9,7 +9,7 @@ services:
 
   exporter:
     build: .
-    command: python -m services.google_drive_exporter
+    command: python -m services.exporter.google_drive_exporter
     environment:
       - DOCKER_ENV=1
     env_file:
