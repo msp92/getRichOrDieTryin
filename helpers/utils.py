@@ -1,11 +1,16 @@
+import boto3
 import csv
+import json
+import logging
 import os
 import shutil
-import json
+import subprocess
 import unicodedata
-from typing import List, Union
 
 import pandas as pd
+
+from datetime import datetime
+from typing import List, Union
 
 from config.entity_names import (
     FIXTURE_STATS_DIR,
@@ -13,6 +18,28 @@ from config.entity_names import (
     FIXTURE_PLAYER_STATS_DIR,
 )
 from config.vars import DATA_DIR, ROOT_DIR
+
+
+def package_and_upload(local_dir: str, s3_bucket: str, prefix: str) -> None:
+    """
+    Creates a tar archive from local_dir and uploads it to s3_bucket with a timestamped filename.
+    Example usage after pipeline run, if you want to store processed data logs or JSON files.
+    """
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
+    archive_name = f"{prefix}_{timestamp}.tar.gz"
+    tmp_path = f"/tmp/{archive_name}"
+    s3_client = boto3.client("s3")
+
+    logging.info(f"Packing directory: {local_dir} -> {tmp_path}")
+    subprocess.run(f"tar -czf {tmp_path} -C {local_dir} .", shell=True, check=True)
+
+    s3_key = f"{prefix}/backups/{archive_name}"
+    logging.info(f"Uploading to s3://{s3_bucket}/{s3_key}")
+    s3_client.upload_file(tmp_path, s3_bucket, s3_key)
+
+    # Cleanup
+    os.remove(tmp_path)
+    logging.info("Package and upload completed.")
 
 
 def get_df_from_json(filename: str, sub_dir: str) -> pd.DataFrame:
