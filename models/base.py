@@ -52,6 +52,11 @@ class BaseMixin:
         """
         Class method performing bulk upsert of provided DataFrame.
         """
+        if not cls.__table__.exists(cls.db.engine):
+            logging.info(f"Table for {cls.__name__} does not exist. Creating it...")
+            cls.__table__.create(cls.db.engine)
+            logging.info(f"Table for {cls.__name__} created successfully.")
+
         primary_keys = cls.get_primary_keys()
         with cls.db.get_session() as session:
             try:
@@ -76,10 +81,8 @@ class BaseMixin:
             key_values = df[primary_keys].to_dict(orient="records")
         except KeyError as e:
             if "country_id" in e.args[0]:
-                logging.error(
-                    "Field 'country_id' of type Sequence is not available in the file and could't be checked against Df from input json file."
-                )
-                # FIXME: Query Countries table and get all country_ids
+                country_df = cls.get_df_from_table()
+                return country_df[["country_id"]]
             return pd.DataFrame()
 
         if key_values:
@@ -111,14 +114,11 @@ class BaseMixin:
                 tuple(str(existing_records[key].iloc[i]) for key in primary_keys)
                 for i in range(len(existing_records))
             ]
-
-            # Convert primary key values in `new_records` with safe casting
-            new_records = [
-                record
-                for record in records
-                if tuple(str(record[key]) for key in primary_keys)
-                not in existing_key_tuples
-            ]
+            new_records = []
+            for record in records:
+                record_key_tuple = tuple(str(record[key]) for key in primary_keys)
+                if record_key_tuple not in existing_key_tuples:
+                    new_records.append(record)
         else:
             new_records = records
 
