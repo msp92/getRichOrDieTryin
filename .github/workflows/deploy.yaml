@@ -4,9 +4,11 @@ on:
   push:
     branches:
       - master
+      - dev
 
 jobs:
   build:
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
