@@ -50,7 +50,7 @@ def parse_leagues() -> pd.DataFrame:
         .sort_values(by="league_id")
     )
 
-    final_df["country_id"] = final_df["country_id"].astype(int)
+    final_df["country_id"] = final_df["country_id"].astype("Int32")
     return final_df
 
 
@@ -75,7 +75,7 @@ def parse_teams() -> pd.DataFrame:
         .sort_values(by="team_id")
     )
     final_df = final_df.dropna(subset=["country_id"])
-    final_df["country_id"] = final_df["country_id"].astype(int)
+    final_df["country_id"] = final_df["country_id"].astype("Int32")
     return final_df
 
 
@@ -120,7 +120,7 @@ def parse_seasons() -> pd.DataFrame:
         logging.error(
             "There are some problematic rows (probably nan) in final_df['country_id']"
         )
-    final_df["country_id"] = final_df["country_id"].astype(int)
+    final_df["country_id"] = final_df["country_id"].astype("Int32")
 
     final_df = final_df.filter(
         items=[column.name for column in Season.__table__.columns]
