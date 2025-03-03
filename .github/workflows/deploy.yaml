@@ -49,6 +49,11 @@ jobs:
 
       - name: Deploy to EC2
         env:
+          API_FOOTBALL_BASE_URL: ${{ secrets.API_FOOTBALL_BASE_URL }}
+          API_FOOTBALL_HEADER_KEY_NAME: ${{ secrets.API_FOOTBALL_HEADER_KEY_NAME }}
+          API_FOOTBALL_HEADER_KEY_VALUE: ${{ secrets.API_FOOTBALL_HEADER_KEY_VALUE }}
+          API_FOOTBALL_HEADER_HOST_NAME: ${{ secrets.API_FOOTBALL_HEADER_HOST_NAME }}
+          API_FOOTBALL_HEADER_HOST_VALUE: ${{ secrets.API_FOOTBALL_HEADER_HOST_VALUE }}
           EC2_HOST: ${{ secrets.EC2_HOST }}
           EC2_USER: ${{ secrets.EC2_USER }}
           EC2_KEY: ${{ secrets.EC2_SSH_KEY }}
