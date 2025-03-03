@@ -72,6 +72,8 @@ def get_df_from_json(filename: str, sub_dir: str) -> pd.DataFrame:
                     df.insert(1, "event_id", range(1, len(df) + 1))
                 else:
                     df.insert(1, "side", ["home", "away"])
+                # Replace None and NaN values with a placeholder value to avoid None/NaN values in
+                df.fillna(pd.NA, inplace=True)
             return df
     except FileNotFoundError:
         raise FileNotFoundError(

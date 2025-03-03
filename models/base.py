@@ -42,6 +42,8 @@ class BaseMixin:
         with cls.db.get_session() as session:
             try:
                 df = pd.read_sql_query(session.query(cls).statement, cls.db.engine)
+                # Replace None and NaN values with a placeholder value to avoid None/NaN values in
+                df.fillna(pd.NA, inplace=True)
             except Exception as e:
                 logging.error(f"Error while getting {cls.__name__} data: {str(e)}")
                 raise Exception

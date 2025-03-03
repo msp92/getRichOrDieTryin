@@ -133,7 +133,6 @@ def parse_fixtures_file(file_name: str) -> pd.DataFrame:
     from models.data_warehouse.fixtures import Fixture
 
     raw_df = get_df_from_json(file_name[:-5], sub_dir=FIXTURES_DIR)
-    raw_df.fillna(pd.NA, inplace=True)
 
     # TODO: check for duplicates; if Yes -> take status FT/AET/PEN
     # TODO: for now try without status = 'PST'
@@ -292,7 +291,6 @@ def parse_coaches() -> pd.DataFrame:
 
 def parse_fixture_events_file(file_name: str) -> pd.DataFrame:
     raw_df = get_df_from_json(file_name[:-5], sub_dir="fixture_events")
-    raw_df.fillna("", inplace=True)
     final_df = raw_df.rename(
         columns={
             "time.elapsed": "elapsed_time",
@@ -324,8 +322,6 @@ def parse_fixture_events_file(file_name: str) -> pd.DataFrame:
 
 def parse_fixture_stats_file(file_name: str) -> pd.DataFrame:
     raw_df = get_df_from_json(file_name[:-5], sub_dir=FIXTURE_STATS_DIR)
-    # Replace None and NaN values with a placeholder value to avoid None/NaN values in
-    raw_df.fillna(pd.NA, inplace=True)
     # raw_df["side"] = ["home", "away"]
     # Transform from {"key": "Shots On Goal", "value": 5} to {"Shots On Goal": 10}
     raw_df["statistics"] = raw_df["statistics"].apply(
@@ -339,7 +335,6 @@ def parse_fixture_stats_file(file_name: str) -> pd.DataFrame:
 
 def parse_fixture_player_stats_file(file_name: str) -> pd.DataFrame:
     raw_df = get_df_from_json(file_name[:-5], sub_dir=FIXTURE_PLAYER_STATS_DIR)
-    raw_df.fillna(pd.NA, inplace=True)
     # raw_df["side"] = ["home", "away"]
     # Transform statistics to key:value pairs
     raw_df["players"] = raw_df["players"].apply(

@@ -51,6 +51,8 @@ def load_all_files_from_data_directory(sub_dir: str) -> pd.DataFrame:
 
     all_dfs = [df for df in list_of_dfs if list_of_dfs and not df.empty]
     combined_df = pd.concat(all_dfs, ignore_index=True)
+    # Replace None and NaN values with a placeholder value to avoid None/NaN values in
+    combined_df.fillna(pd.NA, inplace=True)
     return combined_df
 
 

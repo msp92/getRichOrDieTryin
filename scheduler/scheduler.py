@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 
 # Define scheduled times
-DAILY_SCHEDULE_DATES = ["13:15"]
+DAILY_SCHEDULE_DATES = ["20:32"]
 
 # List of pipelines to schedule
 PIPELINES = {
